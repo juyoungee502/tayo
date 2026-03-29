@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { buttonStyles } from "@/components/ui/button";
 import { signOutAction } from "@/lib/actions/app-actions";
@@ -28,12 +28,14 @@ export function Header({
         { href: "/home", label: "홈" },
         { href: "/parties", label: "택시팟 찾기" },
         { href: "/parties/new", label: "생성" },
+        { href: "/waiting", label: "뭐먹지" },
         { href: "/mypage", label: "내 현황" },
         ...(profile.role === "admin" ? [{ href: "/admin", label: "관리" }] : []),
       ]
     : [
         { href: "/home", label: "홈" },
         { href: "/parties", label: "택시팟 찾기" },
+        { href: "/waiting", label: "뭐먹지" },
         { href: "/login", label: "로그인" },
       ];
 

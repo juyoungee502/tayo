@@ -1,5 +1,9 @@
 ﻿import { ALLOWED_LOGIN_EMAIL_DOMAINS, APP_NAME } from "@/lib/constants";
 
+const URGENT_NOTE_PREFIX = "[URGENT]";
+const DEFAULT_ESTIMATED_TOTAL_TAXI_FARE = 26000;
+const YEOKGOK_ESTIMATED_TOTAL_TAXI_FARE = 6500;
+
 export function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -76,4 +80,44 @@ export function toNullableNumber(value: string | null | undefined) {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function decorateNoteWithUrgency(note: string | null | undefined, urgent: boolean) {
+  const cleaned = (note ?? "").replace(URGENT_NOTE_PREFIX, "").trim();
+
+  if (!urgent) {
+    return cleaned;
+  }
+
+  return cleaned ? `${URGENT_NOTE_PREFIX} ${cleaned}` : URGENT_NOTE_PREFIX;
+}
+
+export function isUrgentParty(note: string | null | undefined) {
+  return (note ?? "").trim().startsWith(URGENT_NOTE_PREFIX);
+}
+
+export function stripUrgentMarker(note: string | null | undefined) {
+  const cleaned = (note ?? "").replace(URGENT_NOTE_PREFIX, "").trim();
+  return cleaned || null;
+}
+
+function getEstimatedTotalFare(departurePlaceName: string | null | undefined) {
+  if ((departurePlaceName ?? "").includes("역곡역")) {
+    return YEOKGOK_ESTIMATED_TOTAL_TAXI_FARE;
+  }
+
+  return DEFAULT_ESTIMATED_TOTAL_TAXI_FARE;
+}
+
+export function estimateTaxiShare(
+  joinedCount: number,
+  capacity: number,
+  departurePlaceName?: string | null,
+  includeNextPassenger = true,
+) {
+  const divisor = includeNextPassenger
+    ? Math.min(Math.max(joinedCount + 1, 1), capacity)
+    : Math.min(Math.max(joinedCount, 1), capacity);
+
+  return Math.ceil(getEstimatedTotalFare(departurePlaceName) / divisor / 100) * 100;
 }

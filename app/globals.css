@@ -9,6 +9,48 @@
   --card: rgba(255, 255, 255, 0.92);
   --muted: #8c7286;
   --border: rgba(183, 122, 141, 0.16);
+  --bg-spot-1: rgba(251, 194, 201, 0.28);
+  --bg-spot-2: rgba(233, 214, 234, 0.22);
+  --bg-spot-3: rgba(255, 237, 240, 0.5);
+  --bg-bottom: #fff5f8;
+  --brand-50: #fff7f8;
+  --brand-100: #feecef;
+  --brand-200: #fbcfd7;
+  --brand-300: #f8b8c2;
+  --brand-400: #f5a1af;
+  --brand-500: #fbc2c9;
+  --brand-700: #cd7f91;
+  --shadow-brand-200-60: rgba(251, 194, 201, 0.6);
+  --shadow-brand-500-20: rgba(251, 194, 201, 0.2);
+  --mesh-spot-1: rgba(251, 194, 201, 0.42);
+  --mesh-spot-2: rgba(232, 217, 241, 0.28);
+  --mesh-spot-3: rgba(255, 236, 239, 0.52);
+  --selection: rgba(251, 194, 201, 0.32);
+}
+
+:root[data-theme="blue"] {
+  --background: #f3fbff;
+  --foreground: #214864;
+  --card: rgba(255, 255, 255, 0.94);
+  --muted: #5d7d93;
+  --border: rgba(2, 123, 206, 0.16);
+  --bg-spot-1: rgba(2, 123, 206, 0.18);
+  --bg-spot-2: rgba(129, 209, 255, 0.18);
+  --bg-spot-3: rgba(216, 245, 255, 0.45);
+  --bg-bottom: #eef9ff;
+  --brand-50: #f2faff;
+  --brand-100: #dff3ff;
+  --brand-200: #b8e5ff;
+  --brand-300: #7fd2ff;
+  --brand-400: #3cb8ef;
+  --brand-500: #027bce;
+  --brand-700: #005f9f;
+  --shadow-brand-200-60: rgba(2, 123, 206, 0.28);
+  --shadow-brand-500-20: rgba(2, 123, 206, 0.2);
+  --mesh-spot-1: rgba(2, 123, 206, 0.22);
+  --mesh-spot-2: rgba(111, 208, 255, 0.2);
+  --mesh-spot-3: rgba(220, 247, 255, 0.55);
+  --selection: rgba(2, 123, 206, 0.2);
 }
 
 * {
@@ -23,10 +65,10 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 0% 0%, rgba(251, 194, 201, 0.28), transparent 30%),
-    radial-gradient(circle at 100% 0%, rgba(233, 214, 234, 0.22), transparent 32%),
-    radial-gradient(circle at 50% 100%, rgba(255, 237, 240, 0.5), transparent 35%),
-    linear-gradient(180deg, #fffdfd 0%, #fff8fb 52%, #fff5f8 100%);
+    radial-gradient(circle at 0% 0%, var(--bg-spot-1), transparent 30%),
+    radial-gradient(circle at 100% 0%, var(--bg-spot-2), transparent 32%),
+    radial-gradient(circle at 50% 100%, var(--bg-spot-3), transparent 35%),
+    linear-gradient(180deg, #fffdfd 0%, var(--background) 52%, var(--bg-bottom) 100%);
   color: var(--foreground);
 }
 
@@ -44,68 +86,76 @@ button {
 
 @layer utilities {
   .bg-brand-50 {
-    background-color: #fff7f8 !important;
+    background-color: var(--brand-50) !important;
   }
 
   .bg-brand-100 {
-    background-color: #feecef !important;
+    background-color: var(--brand-100) !important;
   }
 
   .bg-brand-500 {
-    background-color: #fbc2c9 !important;
+    background-color: var(--brand-500) !important;
   }
 
   .text-brand-700 {
-    color: #cd7f91 !important;
+    color: var(--brand-700) !important;
   }
 
   .border-brand-200 {
-    border-color: #fbcfd7 !important;
+    border-color: var(--brand-200) !important;
   }
 
   .border-brand-300 {
-    border-color: #f8b8c2 !important;
+    border-color: var(--brand-300) !important;
   }
 
   .ring-brand-200 {
-    --tw-ring-color: #fbcfd7 !important;
+    --tw-ring-color: var(--brand-200) !important;
   }
 
   .outline-brand-400 {
-    outline-color: #f5a1af !important;
+    outline-color: var(--brand-400) !important;
   }
 
   .shadow-brand-200\/60 {
-    --tw-shadow-color: rgba(251, 194, 201, 0.6) !important;
+    --tw-shadow-color: var(--shadow-brand-200-60) !important;
     --tw-shadow: var(--tw-shadow-colored) !important;
   }
 
   .shadow-brand-500\/20 {
-    --tw-shadow-color: rgba(251, 194, 201, 0.2) !important;
+    --tw-shadow-color: var(--shadow-brand-500-20) !important;
     --tw-shadow: var(--tw-shadow-colored) !important;
   }
 
   .hover\:bg-brand-50:hover {
-    background-color: #fff7f8 !important;
+    background-color: var(--brand-50) !important;
   }
 
   .hover\:bg-brand-100\/60:hover {
-    background-color: rgba(254, 236, 239, 0.6) !important;
+    background-color: color-mix(in srgb, var(--brand-100) 60%, transparent) !important;
   }
 
   .hover\:bg-brand-400:hover {
-    background-color: #f5a1af !important;
+    background-color: var(--brand-400) !important;
   }
 
   .bg-brand-50\/70 {
-    background-color: rgba(255, 247, 248, 0.7) !important;
+    background-color: color-mix(in srgb, var(--brand-50) 70%, transparent) !important;
   }
 
   .bg-brand-100\/70 {
-    background-color: rgba(254, 236, 239, 0.7) !important;
+    background-color: color-mix(in srgb, var(--brand-100) 70%, transparent) !important;
+  }
+
+  .bg-mesh-glow {
+    background-image:
+      radial-gradient(circle at top left, var(--mesh-spot-1), transparent 32%),
+      radial-gradient(circle at top right, var(--mesh-spot-2), transparent 30%),
+      radial-gradient(circle at bottom, var(--mesh-spot-3), transparent 38%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), color-mix(in srgb, var(--background) 98%, white 2%)) !important;
   }
 }
 
 ::selection {
-  background: rgba(251, 194, 201, 0.32);
+  background: var(--selection);
 }

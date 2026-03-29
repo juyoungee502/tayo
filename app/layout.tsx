@@ -4,6 +4,7 @@ import { Noto_Sans_KR, Space_Grotesk } from "next/font/google";
 
 import { Header } from "@/components/layout/header";
 import { buttonStyles } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { getPendingFeedbackPartiesForCurrentUser } from "@/lib/queries/data";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
 
@@ -67,11 +68,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </div>
             </div>
           ) : null}
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+            <div className="mb-4 flex justify-end">
+              <ThemeToggle />
+            </div>
+            {children}
+          </main>
           <footer className="border-t border-brand-100 bg-white/70 backdrop-blur-xl">
             <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-500 sm:px-6 sm:text-base">
               <p className="font-[var(--font-display)] font-semibold text-slateBlue">All Rights Reserved. TAYO x OIKOS!!!!</p>
               <p>CEO: 유주영 CTO: 박준서</p>
+              <p className="text-sm text-slate-500">We love because he first loved us. 1 John 4:19</p>
             </div>
           </footer>
         </div>
@@ -79,3 +86,4 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
+

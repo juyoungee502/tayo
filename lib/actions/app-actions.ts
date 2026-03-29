@@ -8,7 +8,7 @@ import { requireAuth } from "@/lib/queries/auth";
 import { feedbackSchema } from "@/lib/validators/feedback";
 import { partySchema } from "@/lib/validators/party";
 import { deletionRequestSchema, profileSchema } from "@/lib/validators/profile";
-import { parseErrorMessage } from "@/lib/utils";
+import { decorateNoteWithUrgency, parseErrorMessage } from "@/lib/utils";
 import type { ReportReason } from "@/types/database";
 
 function fromValidationErrors(fieldErrors: Record<string, string[] | undefined>): ActionState {
@@ -56,6 +56,9 @@ export async function createPartyAction(_: ActionState, formData: FormData): Pro
 
   try {
     const { supabase } = await requireAuth();
+    const urgent = String(formData.get("isUrgent") ?? "") === "true";
+    const normalizedNote = decorateNoteWithUrgency(parsed.data.note ?? "", urgent);
+
     const { data, error } = await supabase.rpc("create_taxi_party", {
       p_departure_place_name: parsed.data.departurePlaceName,
       p_departure_detail: parsed.data.departureDetail ?? "",
@@ -66,7 +69,7 @@ export async function createPartyAction(_: ActionState, formData: FormData): Pro
       p_destination_lng: parsed.data.destinationLng ? Number(parsed.data.destinationLng) : null,
       p_scheduled_at: scheduledAt.toISOString(),
       p_capacity: parsed.data.capacity,
-      p_note: parsed.data.note ?? "",
+      p_note: normalizedNote,
     });
 
     if (error || !data) {
@@ -99,10 +102,7 @@ export async function updateProfileAction(_: ActionState, formData: FormData): P
 
   try {
     const { supabase, user } = await requireAuth();
-    const { error } = await supabase
-      .from("profiles")
-      .update({ nickname: parsed.data.nickname })
-      .eq("id", user.id);
+    const { error } = await supabase.from("profiles").update({ nickname: parsed.data.nickname }).eq("id", user.id);
 
     if (error) {
       throw new Error(error.message || "프로필을 수정하지 못했습니다.");
@@ -212,6 +212,99 @@ export async function submitFeedbackAction(
   }
 }
 
+export async function updatePartyCapacityAction(partyId: string, formData: FormData) {
+  const nextCapacity = Number(formData.get("capacity"));
+
+  if (!Number.isInteger(nextCapacity) || nextCapacity < 2 || nextCapacity > 4) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("정원은 2명에서 4명 사이만 설정할 수 있습니다.")}`);
+  }
+
+  const { supabase, user } = await requireAuth();
+  await supabase.rpc("complete_due_parties");
+
+  const { data: party, error: fetchError } = await supabase
+    .from("taxi_parties")
+    .select("creator_id, scheduled_at, status")
+    .eq("id", partyId)
+    .maybeSingle();
+
+  if (fetchError || !party) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("택시팟 정보를 찾지 못했습니다.")}`);
+  }
+
+  if (party.creator_id !== user.id) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("생성자만 정원을 수정할 수 있습니다.")}`);
+  }
+
+  if (new Date(party.scheduled_at).getTime() <= Date.now() || party.status === "completed" || party.status === "cancelled") {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("이미 종료된 택시팟은 수정할 수 없습니다.")}`);
+  }
+
+  const { count: joinedCount, error: memberError } = await supabase
+    .from("party_members")
+    .select("id", { count: "exact", head: true })
+    .eq("party_id", partyId)
+    .eq("status", "joined");
+
+  if (memberError) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("현재 참여 인원을 확인하지 못했습니다.")}`);
+  }
+
+  if ((joinedCount ?? 0) > nextCapacity) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("현재 참여 인원보다 적게 정원을 줄일 수 없습니다.")}`);
+  }
+
+  const { error: updateError } = await supabase.from("taxi_parties").update({ capacity: nextCapacity }).eq("id", partyId);
+
+  if (updateError) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent(updateError.message || "정원 수정에 실패했습니다.")}`);
+  }
+
+  await supabase.rpc("sync_party_status", { p_party_id: partyId });
+
+  revalidatePath(`/parties/${partyId}`);
+  revalidatePath("/parties");
+  revalidatePath("/home");
+  revalidatePath("/mypage");
+  redirect(`/parties/${partyId}?message=${encodeURIComponent("정원이 업데이트되었습니다.")}`);
+}
+
+export async function nudgePartyAction(partyId: string) {
+  const { supabase, user } = await requireAuth();
+  await supabase.rpc("complete_due_parties");
+
+  const { data: party, error: partyError } = await supabase
+    .from("taxi_parties")
+    .select("creator_id, scheduled_at, status")
+    .eq("id", partyId)
+    .maybeSingle();
+
+  if (partyError || !party) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("택시팟 정보를 찾지 못했습니다.")}`);
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("party_members")
+    .select("status")
+    .eq("party_id", partyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError || membership?.status !== "joined") {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("참여 중인 파티원만 재촉하기를 사용할 수 있습니다.")}`);
+  }
+
+  if (party.creator_id === user.id) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("생성자는 재촉하기를 사용할 수 없습니다.")}`);
+  }
+
+  if (new Date(party.scheduled_at).getTime() <= Date.now() || party.status === "completed" || party.status === "cancelled") {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("이미 종료된 택시팟은 재촉할 수 없습니다.")}`);
+  }
+
+  revalidatePath(`/parties/${partyId}`);
+  redirect(`/parties/${partyId}?message=${encodeURIComponent("지금 출발해요 요청을 보냈어요. 바로 모일 준비를 해주세요.")}`);
+}
 async function runPartyMutation(
   partyId: string,
   action: "join_taxi_party" | "leave_taxi_party" | "cancel_taxi_party",
@@ -245,3 +338,4 @@ export async function leavePartyAction(partyId: string) {
 export async function cancelPartyAction(partyId: string) {
   await runPartyMutation(partyId, "cancel_taxi_party", "택시팟을 취소했습니다.");
 }
+
