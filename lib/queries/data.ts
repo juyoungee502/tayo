@@ -1,5 +1,5 @@
 ﻿import { FEEDBACK_DELAY_HOURS } from "@/lib/constants";
-import { requireAdmin, requireAuth, type ServerSupabaseClient } from "@/lib/queries/auth";
+import { getOptionalAuthContext, requireAdmin, requireAuth, type ServerSupabaseClient } from "@/lib/queries/auth";
 import type {
   AccountDeletionRequest,
   MemberStatus,
@@ -13,6 +13,13 @@ import type {
 
 const ACTIVE_PARTY_STATUSES = ["recruiting", "full"] as const;
 const FEEDBACK_ELIGIBLE_MEMBER_STATUSES: MemberStatus[] = ["joined", "completed"];
+const PARTY_STATUS_PRIORITY: Record<TaxiParty["status"], number> = {
+  recruiting: 0,
+  full: 1,
+  completed: 2,
+  expired: 3,
+  cancelled: 4,
+};
 
 function getDateRange(date: string) {
   const start = new Date(`${date}T00:00:00+09:00`);
@@ -22,6 +29,22 @@ function getDateRange(date: string) {
     start: start.toISOString(),
     end: end.toISOString(),
   };
+}
+
+function sortPartyList<T extends PartyListItem>(items: T[]) {
+  return [...items].sort((a, b) => {
+    const statusDiff = PARTY_STATUS_PRIORITY[a.status] - PARTY_STATUS_PRIORITY[b.status];
+
+    if (statusDiff !== 0) {
+      return statusDiff;
+    }
+
+    if (a.isJoinable !== b.isJoinable) {
+      return a.isJoinable ? -1 : 1;
+    }
+
+    return new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime();
+  });
 }
 
 async function fetchProfilesMap(supabase: ServerSupabaseClient, ids: string[]) {
@@ -95,60 +118,13 @@ async function fetchActivePartyId(supabase: ServerSupabaseClient, userId: string
   return activePartyIds[0] ?? null;
 }
 
-async function decoratePartyList(
-  supabase: ServerSupabaseClient,
-  parties: TaxiParty[],
-  currentUserId: string,
-) {
-  const partyIds = parties.map((party) => party.id);
-  const members = await fetchPartyMembers(supabase, partyIds);
-  const profilesMap = await fetchProfilesMap(
-    supabase,
-    [...new Set(parties.map((party) => party.creator_id))],
-  );
-  const activePartyId = await fetchActivePartyId(supabase, currentUserId);
-  const membersByPartyId = new Map<string, PartyMember[]>();
-
-  members.forEach((member) => {
-    const bucket = membersByPartyId.get(member.party_id) ?? [];
-    bucket.push(member);
-    membersByPartyId.set(member.party_id, bucket);
-  });
-
-  return parties.map((party) => {
-    const partyMembers = membersByPartyId.get(party.id) ?? [];
-    const joinedMembers = partyMembers.filter((member) => member.status === "joined");
-    const myMembership = partyMembers.find((member) => member.user_id === currentUserId) ?? null;
-    const joinedCount = joinedMembers.length;
-    const seatsLeft = Math.max(party.capacity - joinedCount, 0);
-    const isFuture = new Date(party.scheduled_at).getTime() > Date.now();
-    const isJoinable =
-      isFuture &&
-      seatsLeft > 0 &&
-      party.status !== "cancelled" &&
-      party.status !== "completed" &&
-      !myMembership &&
-      (!activePartyId || activePartyId === party.id);
-
-    return {
-      ...party,
-      creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "익명",
-      joinedCount,
-      seatsLeft,
-      myMembershipStatus: (myMembership?.status as MemberStatus | undefined) ?? null,
-      isJoinable,
-    } satisfies PartyListItem;
-  });
-}
-
-export async function getPendingFeedbackPartiesForCurrentUser() {
-  const { supabase, user } = await requireAuth();
+async function getPendingFeedbackPartiesForUser(supabase: ServerSupabaseClient, userId: string) {
   const cutoff = new Date(Date.now() - FEEDBACK_DELAY_HOURS * 60 * 60 * 1000).toISOString();
 
   const { data: memberships, error: membershipError } = await supabase
     .from("party_members")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .in("status", FEEDBACK_ELIGIBLE_MEMBER_STATUSES);
 
   if (membershipError) {
@@ -176,7 +152,7 @@ export async function getPendingFeedbackPartiesForCurrentUser() {
   const { data: reviews } = await supabase
     .from("reviews")
     .select("party_id")
-    .eq("reviewer_id", user.id)
+    .eq("reviewer_id", userId)
     .in("party_id", partyIds);
 
   const reviewedPartyIds = new Set((reviews ?? []).map((review) => review.party_id));
@@ -184,10 +160,59 @@ export async function getPendingFeedbackPartiesForCurrentUser() {
   return ((parties ?? []) as TaxiParty[]).filter((party) => !reviewedPartyIds.has(party.id));
 }
 
+async function decoratePartyList(
+  supabase: ServerSupabaseClient,
+  parties: TaxiParty[],
+  currentUserId: string | null,
+) {
+  const partyIds = parties.map((party) => party.id);
+  const members = await fetchPartyMembers(supabase, partyIds);
+  const profilesMap = await fetchProfilesMap(
+    supabase,
+    [...new Set(parties.map((party) => party.creator_id))],
+  );
+  const activePartyId = currentUserId ? await fetchActivePartyId(supabase, currentUserId) : null;
+  const membersByPartyId = new Map<string, PartyMember[]>();
+
+  members.forEach((member) => {
+    const bucket = membersByPartyId.get(member.party_id) ?? [];
+    bucket.push(member);
+    membersByPartyId.set(member.party_id, bucket);
+  });
+
+  return parties.map((party) => {
+    const partyMembers = membersByPartyId.get(party.id) ?? [];
+    const joinedMembers = partyMembers.filter((member) => member.status === "joined");
+    const myMembership = currentUserId
+      ? partyMembers.find((member) => member.user_id === currentUserId) ?? null
+      : null;
+    const joinedCount = joinedMembers.length;
+    const seatsLeft = Math.max(party.capacity - joinedCount, 0);
+    const isFuture = new Date(party.scheduled_at).getTime() > Date.now();
+    const isRecruiting = party.status === "recruiting";
+    const blockedByAnotherActiveParty = Boolean(currentUserId && activePartyId && activePartyId !== party.id);
+    const isJoinable = isFuture && isRecruiting && seatsLeft > 0 && !myMembership && !blockedByAnotherActiveParty;
+
+    return {
+      ...party,
+      creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "익명",
+      joinedCount,
+      seatsLeft,
+      myMembershipStatus: (myMembership?.status as MemberStatus | undefined) ?? null,
+      isJoinable,
+    } satisfies PartyListItem;
+  });
+}
+
+export async function getPendingFeedbackPartiesForCurrentUser() {
+  const { supabase, user } = await requireAuth();
+  return getPendingFeedbackPartiesForUser(supabase, user.id);
+}
+
 export async function getHomePageData() {
-  const { supabase, user, profile } = await requireAuth();
-  const pendingFeedbackParties = await getPendingFeedbackPartiesForCurrentUser();
-  const activePartyIds = await fetchActivePartyIdsForUser(supabase, user.id);
+  const { supabase, user, profile } = await getOptionalAuthContext();
+  const pendingFeedbackParties = user ? await getPendingFeedbackPartiesForUser(supabase, user.id) : [];
+  const activePartyIds = user ? await fetchActivePartyIdsForUser(supabase, user.id) : [];
   const { data: activeParties } = activePartyIds.length
     ? await supabase.from("taxi_parties").select("*").in("id", activePartyIds).order("scheduled_at")
     : { data: [] };
@@ -200,30 +225,32 @@ export async function getHomePageData() {
     .from("taxi_parties")
     .select("*")
     .neq("status", "cancelled")
-    .order("scheduled_at", { ascending: true })
-    .limit(6);
+    .gt("scheduled_at", new Date().toISOString())
+    .limit(8);
 
   if (error) {
-    throw new Error("최근 택시팟을 불러오지 못했습니다.");
+    throw new Error("모집 중인 택시팟을 불러오지 못했습니다.");
   }
 
-  const recentParties = await decoratePartyList(supabase, (partiesData ?? []) as TaxiParty[], user.id);
+  const featuredParties = sortPartyList(
+    await decoratePartyList(supabase, (partiesData ?? []) as TaxiParty[], user?.id ?? null),
+  ).slice(0, 4);
 
   return {
+    user,
     profile,
     upcomingParty,
     pendingFeedbackParties,
-    recentParties,
+    featuredParties,
   };
 }
 
 export async function getPartyList(filters: { q?: string; date?: string; availability?: string }) {
-  const { supabase, user } = await requireAuth();
+  const { supabase, user } = await getOptionalAuthContext();
   let query = supabase
     .from("taxi_parties")
     .select("*")
-    .neq("status", "cancelled")
-    .order("scheduled_at", { ascending: true });
+    .neq("status", "cancelled");
 
   if (filters.q) {
     const keyword = filters.q.replaceAll(",", " ").trim();
@@ -241,7 +268,7 @@ export async function getPartyList(filters: { q?: string; date?: string; availab
     throw new Error("택시팟 목록을 불러오지 못했습니다.");
   }
 
-  const items = await decoratePartyList(supabase, (data ?? []) as TaxiParty[], user.id);
+  const items = sortPartyList(await decoratePartyList(supabase, (data ?? []) as TaxiParty[], user?.id ?? null));
 
   if (filters.availability === "joinable") {
     return items.filter((item) => item.isJoinable);
@@ -251,7 +278,7 @@ export async function getPartyList(filters: { q?: string; date?: string; availab
 }
 
 export async function getPartyDetail(partyId: string): Promise<PartyDetail | null> {
-  const { supabase, user } = await requireAuth();
+  const { supabase, user } = await getOptionalAuthContext();
   const { data: partyData, error } = await supabase
     .from("taxi_parties")
     .select("*")
@@ -272,15 +299,12 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     supabase,
     [...new Set([party.creator_id, ...members.map((member) => member.user_id)])],
   );
-  const currentUserMembership = members.find((member) => member.user_id === user.id) ?? null;
+  const currentUserMembership = user ? members.find((member) => member.user_id === user.id) ?? null : null;
   const joinedCount = members.filter((member) => member.status === "joined").length;
-  const { data: reviewData } = await supabase
-    .from("reviews")
-    .select("id")
-    .eq("party_id", partyId)
-    .eq("reviewer_id", user.id)
-    .maybeSingle();
-  const hasAnotherActiveParty = Boolean(await fetchActivePartyId(supabase, user.id, partyId));
+  const { data: reviewData } = user
+    ? await supabase.from("reviews").select("id").eq("party_id", partyId).eq("reviewer_id", user.id).maybeSingle()
+    : { data: null };
+  const hasAnotherActiveParty = user ? Boolean(await fetchActivePartyId(supabase, user.id, partyId)) : false;
   const isFeedbackDue =
     Boolean(currentUserMembership && FEEDBACK_ELIGIBLE_MEMBER_STATUSES.includes(currentUserMembership.status)) &&
     new Date(party.scheduled_at).getTime() <= Date.now() - FEEDBACK_DELAY_HOURS * 60 * 60 * 1000;
