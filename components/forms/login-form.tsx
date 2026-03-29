@@ -23,7 +23,7 @@ function mapAuthErrorMessage(error: unknown) {
   }
 
   if (normalized.includes("email not confirmed")) {
-    return "Supabase가 아직 이메일 확인을 요구하고 있습니다. Auth > Email에서 Confirm email을 꺼주세요.";
+    return "이메일 인증 설정을 먼저 확인해주세요.";
   }
 
   return message;
@@ -83,7 +83,7 @@ export function LoginForm() {
         }
 
         if (!data.session) {
-          throw new Error("Supabase가 아직 이메일 확인을 요구하고 있습니다. Auth > Email에서 Confirm email을 꺼주세요.");
+          throw new Error("이메일 인증 설정을 먼저 확인해주세요.");
         }
 
         setStatus("success");
@@ -134,7 +134,9 @@ export function LoginForm() {
             placeholder="you@example.com"
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring"
           />
-          <p className="text-xs text-slate-500">허용 도메인: {ALLOWED_LOGIN_EMAIL_LABEL}</p>
+          <p className="text-xs leading-5 text-slate-500">
+            허용 도메인은 catholic.ac.kr, korea.ac.kr, gmail.com입니다. 추가를 원하시면 개발자 님에게 맛있는 것을 사주면 됩니다.
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -152,10 +154,6 @@ export function LoginForm() {
           />
           <p className="text-xs text-slate-500">처음이라면 계정을 만들고, 이후에는 같은 이메일과 비밀번호로 바로 로그인합니다.</p>
         </div>
-
-        <Notice variant="info">
-          처음 로그인에서 이메일 인증을 넘기려면 Supabase Auth 설정에서 Email Provider의 Confirm email이 꺼져 있어야 합니다.
-        </Notice>
 
         {message ? <Notice variant={status === "success" ? "success" : status === "error" ? "error" : "info"}>{message}</Notice> : null}
 

@@ -44,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ko">
       <body className={`${bodyFont.variable} ${displayFont.variable} bg-sand font-sans text-slateBlue`}>
-        <div className="min-h-screen">
+        <div className="flex min-h-screen flex-col">
           <Header
             profile={
               authContext.profile
@@ -67,10 +67,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </div>
             </div>
           ) : null}
-          <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+          <footer className="border-t border-slate-200 bg-white/70 backdrop-blur-xl">
+            <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-500 sm:px-6 sm:text-base">
+              <p className="font-[var(--font-display)] font-semibold text-slateBlue">All Rights Reserved. TAYO x OIKOS!!!!</p>
+              <p>CEO: 유주영 CTO: 박준서</p>
+            </div>
+          </footer>
         </div>
       </body>
     </html>
   );
 }
-
