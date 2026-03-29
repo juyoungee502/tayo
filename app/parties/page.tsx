@@ -33,7 +33,7 @@ export default async function PartiesPage({
   const message = pickParam(params.message);
   const error = pickParam(params.error);
   const chooser = pickParam(params.chooser) === "1";
-  const parties = await getPartyList({ q, availability: "joinable" });
+  const parties = await getPartyList({ q });
   const activeParties = parties
     .filter((party) => party.status === "recruiting")
     .sort((a, b) => Number(isImmediateParty(b.scheduled_at)) - Number(isImmediateParty(a.scheduled_at)));
@@ -66,7 +66,7 @@ export default async function PartiesPage({
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-slate-500">바로 출발 가능한 팟을 먼저 보여드려요.</p>
+              <p className="text-sm text-slate-500">모집 중인 팟을 먼저 보여드려요.</p>
               <Link href="/parties?chooser=1" className="text-sm font-semibold text-brand-700 underline underline-offset-4">출발지 바꾸기</Link>
             </div>
           )}
@@ -104,9 +104,18 @@ export default async function PartiesPage({
                     {note ? <p>계좌/메모: {note}</p> : null}
                   </div>
 
-                  <form action={joinPartyAction.bind(null, party.id)}>
-                    <button type="submit" className={buttonStyles("primary", true)}>바로 참여하기</button>
-                  </form>
+                  {party.isJoinable ? (
+                    <form action={joinPartyAction.bind(null, party.id)}>
+                      <button type="submit" className={buttonStyles("primary", true)}>바로 참여하기</button>
+                    </form>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
+                        지금은 참여할 수 없는 팟이지만 모집 중 상태는 확인할 수 있어요.
+                      </div>
+                      <Link href={`/parties/${party.id}`} className={buttonStyles("secondary", true)}>상세 보기</Link>
+                    </div>
+                  )}
                 </div>
               </Card>
             );
@@ -118,4 +127,3 @@ export default async function PartiesPage({
     </div>
   );
 }
-
