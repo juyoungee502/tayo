@@ -4,11 +4,11 @@
 
 :root {
   color-scheme: light;
-  --background: #f7f2ea;
-  --foreground: #16324a;
-  --card: rgba(255, 255, 255, 0.88);
-  --muted: #64748b;
-  --border: rgba(18, 58, 95, 0.12);
+  --background: #fff8fb;
+  --foreground: #5c4357;
+  --card: rgba(255, 255, 255, 0.92);
+  --muted: #8c7286;
+  --border: rgba(183, 122, 141, 0.16);
 }
 
 * {
@@ -23,9 +23,10 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 0% 0%, rgba(249, 115, 22, 0.12), transparent 28%),
-    radial-gradient(circle at 100% 0%, rgba(18, 58, 95, 0.12), transparent 30%),
-    linear-gradient(180deg, #fffdf8 0%, #f7f2ea 100%);
+    radial-gradient(circle at 0% 0%, rgba(251, 194, 201, 0.28), transparent 30%),
+    radial-gradient(circle at 100% 0%, rgba(233, 214, 234, 0.22), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(255, 237, 240, 0.5), transparent 35%),
+    linear-gradient(180deg, #fffdfd 0%, #fff8fb 52%, #fff5f8 100%);
   color: var(--foreground);
 }
 
@@ -41,6 +42,70 @@ button {
   font: inherit;
 }
 
+@layer utilities {
+  .bg-brand-50 {
+    background-color: #fff7f8 !important;
+  }
+
+  .bg-brand-100 {
+    background-color: #feecef !important;
+  }
+
+  .bg-brand-500 {
+    background-color: #fbc2c9 !important;
+  }
+
+  .text-brand-700 {
+    color: #cd7f91 !important;
+  }
+
+  .border-brand-200 {
+    border-color: #fbcfd7 !important;
+  }
+
+  .border-brand-300 {
+    border-color: #f8b8c2 !important;
+  }
+
+  .ring-brand-200 {
+    --tw-ring-color: #fbcfd7 !important;
+  }
+
+  .outline-brand-400 {
+    outline-color: #f5a1af !important;
+  }
+
+  .shadow-brand-200\/60 {
+    --tw-shadow-color: rgba(251, 194, 201, 0.6) !important;
+    --tw-shadow: var(--tw-shadow-colored) !important;
+  }
+
+  .shadow-brand-500\/20 {
+    --tw-shadow-color: rgba(251, 194, 201, 0.2) !important;
+    --tw-shadow: var(--tw-shadow-colored) !important;
+  }
+
+  .hover\:bg-brand-50:hover {
+    background-color: #fff7f8 !important;
+  }
+
+  .hover\:bg-brand-100\/60:hover {
+    background-color: rgba(254, 236, 239, 0.6) !important;
+  }
+
+  .hover\:bg-brand-400:hover {
+    background-color: #f5a1af !important;
+  }
+
+  .bg-brand-50\/70 {
+    background-color: rgba(255, 247, 248, 0.7) !important;
+  }
+
+  .bg-brand-100\/70 {
+    background-color: rgba(254, 236, 239, 0.7) !important;
+  }
+}
+
 ::selection {
-  background: rgba(249, 115, 22, 0.18);
+  background: rgba(251, 194, 201, 0.32);
 }

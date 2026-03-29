@@ -56,8 +56,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }
           />
           {pendingFeedbackCount > 0 ? (
-            <div className="border-b border-amber-200 bg-amber-50">
-              <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="border-b border-brand-200 bg-brand-100/70 backdrop-blur-xl">
+              <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 text-sm text-slateBlue sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <p>
                   후기 작성이 필요한 택시팟이 <strong>{pendingFeedbackCount}개</strong> 있습니다. 다음 방문 때 놓치지 않도록 바로 작성해 주세요.
                 </p>
@@ -68,7 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           ) : null}
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
-          <footer className="border-t border-slate-200 bg-white/70 backdrop-blur-xl">
+          <footer className="border-t border-brand-100 bg-white/70 backdrop-blur-xl">
             <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-500 sm:px-6 sm:text-base">
               <p className="font-[var(--font-display)] font-semibold text-slateBlue">All Rights Reserved. TAYO x OIKOS!!!!</p>
               <p>CEO: 유주영 CTO: 박준서</p>

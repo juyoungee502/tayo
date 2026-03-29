@@ -3,10 +3,10 @@
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-brand-500 text-white hover:bg-brand-600",
-  secondary: "bg-white/80 text-slateBlue ring-1 ring-slate-200 hover:bg-white",
-  ghost: "bg-transparent text-slateBlue hover:bg-slate-100",
-  danger: "bg-rose-500 text-white hover:bg-rose-600",
+  primary: "bg-brand-500 text-slateBlue hover:bg-brand-400 shadow-lg shadow-brand-200/60",
+  secondary: "bg-white/85 text-slateBlue ring-1 ring-brand-200 hover:bg-brand-50",
+  ghost: "bg-transparent text-slateBlue hover:bg-brand-100/60",
+  danger: "bg-rose-400 text-white hover:bg-rose-500",
 };
 
 export function buttonStyles(variant: ButtonVariant = "primary", fullWidth = false) {
