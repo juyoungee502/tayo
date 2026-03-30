@@ -480,8 +480,8 @@ async function decoratePartyList(
   const partyIds = normalizedParties.map((party) => party.id);
   const members = await fetchPartyMembers(supabase, partyIds);
   const creatorIds = [...new Set(normalizedParties.map((party) => party.creator_id))];
-  const profilesMap = await fetchProfilesMap(supabase, creatorIds);
-  const [activePartyId, sharedRideStatsMap, creatorReviewSummaryMap] = await Promise.all([
+  const [profilesMap, activePartyId, sharedRideStatsMap, creatorReviewSummaryMap] = await Promise.all([
+    fetchProfilesMap(supabase, creatorIds),
     currentUserId ? fetchActivePartyId(supabase, currentUserId) : Promise.resolve(null),
     currentUserId
       ? fetchSharedRideStatsWithCreators(supabase, currentUserId, creatorIds)
@@ -573,12 +573,16 @@ export async function getActivePartySnapshotForCurrentUser(): Promise<ActivePart
 
 export async function getHomePageData() {
   const { supabase, user, profile } = await getOptionalAuthContext();
+  const [favoriteDepartures, todayStats] = await Promise.all([
+    user ? fetchFavoriteDepartures(supabase, user.id) : Promise.resolve([] as string[]),
+    fetchTodayStats(supabase),
+  ]);
 
   return {
     user,
     profile,
-    favoriteDepartures: user ? await fetchFavoriteDepartures(supabase, user.id) : [],
-    todayStats: await fetchTodayStats(supabase),
+    favoriteDepartures,
+    todayStats,
   };
 }
 
@@ -631,19 +635,23 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
   }
 
   const party = normalizeParty(partyData as TaxiParty);
-  const members = await fetchPartyMembers(supabase, [partyId]);
+  const [members, memberNotesMap, reviewResult, activePartyId, creatorReviewSummaryMap] = await Promise.all([
+    fetchPartyMembers(supabase, [partyId]),
+    fetchPartyMemberNotes(supabase, partyId),
+    user
+      ? supabase.from("reviews").select("id").eq("party_id", partyId).eq("reviewer_id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    user ? fetchActivePartyId(supabase, user.id, partyId) : Promise.resolve(null),
+    fetchCreatorReviewSummary(supabase, [party.creator_id]),
+  ]);
   const participantProfiles = await fetchProfilesMap(
     supabase,
     [...new Set([party.creator_id, ...members.map((member) => member.user_id)])],
   );
   const currentUserMembership = user ? members.find((member) => member.user_id === user.id) ?? null : null;
-  const memberNotesMap = await fetchPartyMemberNotes(supabase, partyId);
   const joinedCount = members.filter((member) => member.status === "joined").length;
-  const { data: reviewData } = user
-    ? await supabase.from("reviews").select("id").eq("party_id", partyId).eq("reviewer_id", user.id).maybeSingle()
-    : { data: null };
-  const hasAnotherActiveParty = user ? Boolean(await fetchActivePartyId(supabase, user.id, partyId)) : false;
-  const creatorReviewSummaryMap = await fetchCreatorReviewSummary(supabase, [party.creator_id]);
+  const reviewData = reviewResult.data;
+  const hasAnotherActiveParty = user ? Boolean(activePartyId) : false;
   const creatorReviewSummary = creatorReviewSummaryMap.get(party.creator_id) ?? { average: null, count: 0 };
   const isFeedbackDue =
     Boolean(currentUserMembership && FEEDBACK_ELIGIBLE_MEMBER_STATUSES.includes(currentUserMembership.status)) &&
@@ -703,11 +711,18 @@ export async function getFeedbackPageData(partyId: string) {
 
 export async function getMyPageData() {
   const { supabase, user, profile } = await requireAuth();
-  const { data: memberships, error } = await supabase
-    .from("party_members")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("joined_at", { ascending: false });
+  const [{ data: memberships, error }, { data: deletionRequest }] = await Promise.all([
+    supabase
+      .from("party_members")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: false }),
+    supabase
+      .from("account_deletion_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
   if (error) {
     throw new Error("내 이용 이력을 불러오지 못했습니다.");
@@ -717,11 +732,6 @@ export async function getMyPageData() {
   const { data: parties } = partyIds.length
     ? await supabase.from("taxi_parties").select("*").in("id", partyIds).order("scheduled_at", { ascending: false })
     : { data: [] };
-  const { data: deletionRequest } = await supabase
-    .from("account_deletion_requests")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
 
   const membershipByPartyId = new Map(
     ((memberships ?? []) as PartyMember[]).map((membership) => [membership.party_id, membership]),
@@ -750,15 +760,18 @@ export async function getWaitingPageData() {
   }
 
   const entries = (data ?? []) as GuestbookEntry[];
-  const profilesMap = await fetchProfilesMap(
-    supabase,
-    [...new Set(entries.map((entry) => entry.user_id))],
-  );
-  const { likeCountMap, likedEntryIds } = await fetchGuestbookLikeSummary(
-    supabase,
-    entries.map((entry) => entry.id),
-    user?.id ?? null,
-  );
+  const [profilesMap, likeSummary] = await Promise.all([
+    fetchProfilesMap(
+      supabase,
+      [...new Set(entries.map((entry) => entry.user_id))],
+    ),
+    fetchGuestbookLikeSummary(
+      supabase,
+      entries.map((entry) => entry.id),
+      user?.id ?? null,
+    ),
+  ]);
+  const { likeCountMap, likedEntryIds } = likeSummary;
 
   return {
     profile: profile ? normalizeProfile(profile as Profile) : null,
@@ -825,3 +838,8 @@ export async function getThemeFunRanking() {
   const { supabase } = await getOptionalAuthContext();
   return getThemeFunRankingWithClient(supabase);
 }
+
+
+
+
+

@@ -1,4 +1,5 @@
-﻿import { redirect } from "next/navigation";
+﻿import { cache } from "react";
+import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 
 import { SCHOOL_NAME } from "@/lib/constants";
@@ -53,7 +54,7 @@ async function ensureProfile(supabase: ServerSupabaseClient, user: User) {
   return insertedProfile as Profile;
 }
 
-export async function getOptionalAuthContext(): Promise<OptionalAuthContext> {
+const getOptionalAuthContextCached = cache(async (): Promise<OptionalAuthContext> => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -84,6 +85,10 @@ export async function getOptionalAuthContext(): Promise<OptionalAuthContext> {
     user,
     profile,
   };
+});
+
+export async function getOptionalAuthContext(): Promise<OptionalAuthContext> {
+  return getOptionalAuthContextCached();
 }
 
 export async function requireAuth(): Promise<AuthContext> {

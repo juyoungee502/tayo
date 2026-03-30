@@ -39,24 +39,33 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let activePartySnapshot = null;
   let themeFunRanking: Array<{ nickname: string; count: number }> = [];
 
-  try {
-    themeFunRanking = await getThemeFunRanking();
-  } catch {
-    themeFunRanking = [];
-  }
+  const themeRankingPromise = getThemeFunRanking();
 
   if (authContext.user) {
     try {
-      const [pendingFeedbackParties, activeParty] = await Promise.all([
+      const [themeRanking, pendingFeedbackParties, activeParty] = await Promise.all([
+        themeRankingPromise,
         getPendingFeedbackPartiesForCurrentUser(),
         getActivePartySnapshotForCurrentUser(),
       ]);
+      themeFunRanking = themeRanking;
       pendingFeedbackCount = pendingFeedbackParties.length;
       pendingFeedbackHref = pendingFeedbackParties[0] ? `/feedback/${pendingFeedbackParties[0].id}` : "/home";
       activePartySnapshot = activeParty;
     } catch {
       pendingFeedbackCount = 0;
       activePartySnapshot = null;
+      try {
+        themeFunRanking = await themeRankingPromise;
+      } catch {
+        themeFunRanking = [];
+      }
+    }
+  } else {
+    try {
+      themeFunRanking = await themeRankingPromise;
+    } catch {
+      themeFunRanking = [];
     }
   }
 
@@ -132,3 +141,4 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
+
