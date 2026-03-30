@@ -162,6 +162,56 @@ async function getPendingFeedbackPartiesForUser(supabase: ServerSupabaseClient, 
   return ((parties ?? []) as TaxiParty[]).filter((party) => !reviewedPartyIds.has(party.id));
 }
 
+async function fetchLastSharedRideDatesWithCreators(
+  supabase: ServerSupabaseClient,
+  currentUserId: string,
+  creatorIds: string[],
+) {
+  const uniqueCreatorIds = [...new Set(creatorIds.filter((creatorId) => creatorId !== currentUserId))];
+
+  if (uniqueCreatorIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const { data: memberships, error: membershipError } = await supabase
+    .from("party_members")
+    .select("party_id")
+    .eq("user_id", currentUserId)
+    .eq("status", "completed");
+
+  if (membershipError) {
+    throw new Error("이전 동승 기록을 불러오지 못했습니다.");
+  }
+
+  const completedPartyIds = (memberships ?? []).map((membership) => membership.party_id).filter(Boolean);
+
+  if (completedPartyIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const { data: parties, error: partyError } = await supabase
+    .from("taxi_parties")
+    .select("id, creator_id, scheduled_at")
+    .in("id", completedPartyIds)
+    .in("creator_id", uniqueCreatorIds)
+    .eq("status", "completed")
+    .order("scheduled_at", { ascending: false });
+
+  if (partyError) {
+    throw new Error("이전 동승 기록을 불러오지 못했습니다.");
+  }
+
+  const lastRideMap = new Map<string, string>();
+
+  for (const party of parties ?? []) {
+    if (!lastRideMap.has(party.creator_id)) {
+      lastRideMap.set(party.creator_id, party.scheduled_at);
+    }
+  }
+
+  return lastRideMap;
+}
+
 async function decoratePartyList(
   supabase: ServerSupabaseClient,
   parties: TaxiParty[],
@@ -169,11 +219,15 @@ async function decoratePartyList(
 ) {
   const partyIds = parties.map((party) => party.id);
   const members = await fetchPartyMembers(supabase, partyIds);
+  const creatorIds = [...new Set(parties.map((party) => party.creator_id))];
   const profilesMap = await fetchProfilesMap(
     supabase,
-    [...new Set(parties.map((party) => party.creator_id))],
+    creatorIds,
   );
-  const activePartyId = currentUserId ? await fetchActivePartyId(supabase, currentUserId) : null;
+  const [activePartyId, lastRideMap] = await Promise.all([
+    currentUserId ? fetchActivePartyId(supabase, currentUserId) : Promise.resolve(null),
+    currentUserId ? fetchLastSharedRideDatesWithCreators(supabase, currentUserId, creatorIds) : Promise.resolve(new Map<string, string>()),
+  ]);
   const membersByPartyId = new Map<string, PartyMember[]>();
 
   members.forEach((member) => {
@@ -198,6 +252,7 @@ async function decoratePartyList(
     return {
       ...party,
       creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "익명",
+      lastRideAtWithCreator: lastRideMap.get(party.creator_id) ?? null,
       joinedCount,
       seatsLeft,
       myMembershipStatus: (myMembership?.status as MemberStatus | undefined) ?? null,
@@ -485,6 +540,10 @@ export async function getAdminPageData() {
     deletionRequests: (deletionRequests ?? []) as AccountDeletionRequest[],
   };
 }
+
+
+
+
 
 
 

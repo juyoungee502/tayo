@@ -77,6 +77,7 @@ export interface GuestbookEntry {
 
 export interface PartyListItem extends TaxiParty {
   creatorNickname: string;
+  lastRideAtWithCreator: string | null;
   joinedCount: number;
   seatsLeft: number;
   myMembershipStatus: MemberStatus | null;
@@ -103,3 +104,4 @@ export interface ActivePartySnapshot extends TaxiParty {
   seatsLeft: number;
   myMembershipStatus: MemberStatus | null;
 }
+

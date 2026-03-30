@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { getPartyList } from "@/lib/queries/data";
 import { DEFAULT_DESTINATION } from "@/lib/constants";
-import { estimateTaxiShare, formatDateTime, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
+import { estimateTaxiShare, formatDate, formatDateTime, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
 
 function pickParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -98,6 +98,9 @@ export default async function PartiesPage({
                   </div>
 
                   <div className="space-y-1 text-sm text-slate-600">
+                    {party.lastRideAtWithCreator ? (
+                      <p className="text-xs text-brand-700">{formatDate(party.lastRideAtWithCreator)}에 {party.creatorNickname}님과 같이 탑승했어요!</p>
+                    ) : null}
                     <p>현재 인원 / 최대 인원: {party.joinedCount}/{party.capacity}명</p>
                     <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
                     {!immediate ? <p>출발 시간: {formatDateTime(party.scheduled_at)}</p> : null}
@@ -127,3 +130,4 @@ export default async function PartiesPage({
     </div>
   );
 }
+
