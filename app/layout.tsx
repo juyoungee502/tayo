@@ -79,7 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ) : null}
           <main className={`mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8 ${hasActivePartyBar ? "pb-28 sm:pb-32" : ""}`}>
             <div className="mb-4 flex justify-end">
-              <ThemeToggle />
+              <ThemeToggle nickname={authContext.profile?.nickname ?? null} />
             </div>
             {children}
           </main>
@@ -121,4 +121,5 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
+
 
