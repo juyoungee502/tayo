@@ -377,6 +377,80 @@ export async function addGuestbookEntryAction(formData: FormData) {
   revalidatePath("/waiting");
   redirect(`/waiting?message=${encodeURIComponent("방명록이 등록되었어요.")}`);
 }
+export async function savePartyMemberNoteAction(partyId: string, formData: FormData) {
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (!note) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("찾기 메모를 입력해주세요.")}`);
+  }
+
+  if (note.length > 80) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("찾기 메모는 80자 이내로 남겨주세요.")}`);
+  }
+
+  const { supabase, user } = await requireAuth();
+  const { data: membership, error: membershipError } = await supabase
+    .from("party_members")
+    .select("status")
+    .eq("party_id", partyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError || !membership || (membership.status !== "joined" && membership.status !== "completed")) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("참여자만 찾기 메모를 남길 수 있습니다.")}`);
+  }
+
+  const { error } = await supabase.from("party_member_notes").upsert(
+    {
+      party_id: partyId,
+      user_id: user.id,
+      note,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "party_id,user_id" },
+  );
+
+  if (error) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent(error.message || "찾기 메모 저장에 실패했습니다.")}`);
+  }
+
+  revalidatePath(`/parties/${partyId}`);
+  redirect(`/parties/${partyId}?message=${encodeURIComponent("찾기 메모를 저장했어요.")}`);
+}
+
+export async function toggleGuestbookLikeAction(entryId: string) {
+  const { supabase, user } = await requireAuth();
+  const { data: existing, error: existingError } = await supabase
+    .from("guestbook_entry_likes")
+    .select("id")
+    .eq("entry_id", entryId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existingError) {
+    redirect(`/waiting?error=${encodeURIComponent("좋아요 상태를 확인하지 못했습니다.")}`);
+  }
+
+  if (existing) {
+    const { error } = await supabase.from("guestbook_entry_likes").delete().eq("id", existing.id);
+
+    if (error) {
+      redirect(`/waiting?error=${encodeURIComponent(error.message || "좋아요 취소에 실패했습니다.")}`);
+    }
+  } else {
+    const { error } = await supabase.from("guestbook_entry_likes").insert({
+      entry_id: entryId,
+      user_id: user.id,
+    });
+
+    if (error) {
+      redirect(`/waiting?error=${encodeURIComponent(error.message || "좋아요 등록에 실패했습니다.")}`);
+    }
+  }
+
+  revalidatePath("/waiting");
+  redirect("/waiting");
+}
 async function runPartyMutation(
   partyId: string,
   action: "join_taxi_party" | "leave_taxi_party" | "cancel_taxi_party",
@@ -410,6 +484,7 @@ export async function leavePartyAction(partyId: string) {
 export async function cancelPartyAction(partyId: string) {
   await runPartyMutation(partyId, "cancel_taxi_party", "택시팟을 취소했습니다.");
 }
+
 
 
 

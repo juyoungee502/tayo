@@ -3,7 +3,8 @@
 import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { buttonStyles } from "@/components/ui/button";
-import { addGuestbookEntryAction } from "@/lib/actions/app-actions";
+import { RandomMenuPicker } from "@/components/waiting/random-menu-picker";
+import { addGuestbookEntryAction, toggleGuestbookLikeAction } from "@/lib/actions/app-actions";
 import { getWaitingPageData } from "@/lib/queries/data";
 import { formatDateTime } from "@/lib/utils";
 
@@ -52,10 +53,7 @@ export default async function WaitingPage({
             <p className="mt-1 text-sm text-slate-500">택시 오기 전에 잠깐 보고 웃고 지나갈 수 있는 공간이에요.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-3xl border border-brand-200 bg-brand-50/70 p-4 text-sm text-slate-600">
-              <p className="font-semibold text-slateBlue">오늘의 희망 메뉴</p>
-              <p className="mt-2">김치볶음밥, 마라탕, 떡볶이 중 하나는 결국 먹게 될지도 몰라요.</p>
-            </div>
+            <RandomMenuPicker />
             <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
               <p className="font-semibold text-slateBlue">제휴 대기중</p>
               <p className="mt-2">언젠가 학교 앞 맛집들이 이 칸을 가득 채워주길 기다리는 중입니다.</p>
@@ -102,6 +100,16 @@ export default async function WaitingPage({
                     <p className="text-[11px] text-slate-400">{formatDateTime(entry.created_at)}</p>
                   </div>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{entry.message}</p>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <p className="text-xs text-slate-400">좋아요 {entry.likeCount}개</p>
+                    {waitingData.profile ? (
+                      <form action={toggleGuestbookLikeAction.bind(null, entry.id)}>
+                        <button type="submit" className={`${buttonStyles(entry.likedByMe ? "primary" : "secondary")} px-3 py-2 text-xs`}>
+                          {entry.likedByMe ? "좋아요 취소" : "좋아요"}
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
                 </div>
               ))
             ) : (

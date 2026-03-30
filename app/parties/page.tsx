@@ -23,6 +23,79 @@ function buildCreateHref(q: string) {
   return `/parties/new?departure=${encodeURIComponent(departure)}&mode=instant`;
 }
 
+function PartyListSection({
+  title,
+  description,
+  parties,
+}: {
+  title: string;
+  description: string;
+  parties: Awaited<ReturnType<typeof getPartyList>>;
+}) {
+  if (parties.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1 px-1">
+        <h2 className="text-base font-semibold text-slateBlue">{title}</h2>
+        <p className="text-xs text-slate-500">{description}</p>
+      </div>
+
+      {parties.map((party) => {
+        const immediate = isImmediateParty(party.scheduled_at);
+        const estimatedShare = estimateTaxiShare(party.joinedCount, party.capacity, party.departure_place_name);
+        const urgent = isUrgentParty(party.note);
+        const note = stripUrgentMarker(party.note);
+
+        return (
+          <Card key={party.id} className={`p-5 ${immediate ? "border-brand-300 shadow-lg shadow-brand-200/60" : ""}`}>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/parties/${party.id}`} className="text-lg font-semibold text-slateBlue">{party.departure_place_name}</Link>
+                    {urgent ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">급해요</span> : null}
+                    {immediate ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">곧 출발</span> : null}
+                  </div>
+                  {party.destination_name !== DEFAULT_DESTINATION.placeName ? <p className="text-sm text-slate-500">{party.destination_name}</p> : null}
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${immediate ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-600"}`}>
+                  {immediate ? "바로 출발" : "예약"}
+                </span>
+              </div>
+
+              <div className="space-y-1 text-sm text-slate-600">
+                {party.lastRideAtWithCreator ? (
+                  <p className="text-xs text-brand-700">{formatDate(party.lastRideAtWithCreator)}에 {party.creatorNickname}님과 같이 탑승했어요!</p>
+                ) : null}
+                <p>현재 인원 / 최대 인원: {party.joinedCount}/{party.capacity}명</p>
+                <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
+                {!immediate ? <p>출발 시간: {formatDateTime(party.scheduled_at)}</p> : <p>지금 바로 모이면 출발하기 좋아요.</p>}
+                {note ? <p>계좌/메모: {note}</p> : null}
+              </div>
+
+              {party.isJoinable ? (
+                <form action={joinPartyAction.bind(null, party.id)}>
+                  <button type="submit" className={buttonStyles("primary", true)}>바로 참여하기</button>
+                </form>
+              ) : (
+                <div className="space-y-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
+                    지금은 참여할 수 없는 팟이지만 모집 중 상태는 확인할 수 있어요.
+                  </div>
+                  <Link href={`/parties/${party.id}`} className={buttonStyles("secondary", true)}>상세 보기</Link>
+                </div>
+              )}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 export default async function PartiesPage({
   searchParams,
 }: {
@@ -34,9 +107,9 @@ export default async function PartiesPage({
   const error = pickParam(params.error);
   const chooser = pickParam(params.chooser) === "1";
   const parties = await getPartyList({ q });
-  const activeParties = parties
-    .filter((party) => party.status === "recruiting")
-    .sort((a, b) => Number(isImmediateParty(b.scheduled_at)) - Number(isImmediateParty(a.scheduled_at)));
+  const activeParties = parties.filter((party) => party.status === "recruiting");
+  const immediateParties = activeParties.filter((party) => isImmediateParty(party.scheduled_at));
+  const reservedParties = activeParties.filter((party) => !isImmediateParty(party.scheduled_at));
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-4">
@@ -66,7 +139,7 @@ export default async function PartiesPage({
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-slate-500">모집 중인 팟을 먼저 보여드려요.</p>
+              <p className="text-sm text-slate-500">곧 출발하는 팟부터 먼저 보여드려요.</p>
               <Link href="/parties?chooser=1" className="text-sm font-semibold text-brand-700 underline underline-offset-4">출발지 바꾸기</Link>
             </div>
           )}
@@ -74,55 +147,9 @@ export default async function PartiesPage({
       </Card>
 
       {q ? activeParties.length > 0 ? (
-        <div className="space-y-3">
-          {activeParties.map((party) => {
-            const immediate = isImmediateParty(party.scheduled_at);
-            const estimatedShare = estimateTaxiShare(party.joinedCount, party.capacity, party.departure_place_name);
-            const urgent = isUrgentParty(party.note);
-            const note = stripUrgentMarker(party.note);
-
-            return (
-              <Card key={party.id} className="p-5">
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link href={`/parties/${party.id}`} className="text-lg font-semibold text-slateBlue">{party.departure_place_name}</Link>
-                        {urgent ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">급해요</span> : null}
-                      </div>
-                      {party.destination_name !== DEFAULT_DESTINATION.placeName ? <p className="text-sm text-slate-500">{party.destination_name}</p> : null}
-                    </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${immediate ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-600"}`}>
-                      {immediate ? "바로 출발" : "예약"}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1 text-sm text-slate-600">
-                    {party.lastRideAtWithCreator ? (
-                      <p className="text-xs text-brand-700">{formatDate(party.lastRideAtWithCreator)}에 {party.creatorNickname}님과 같이 탑승했어요!</p>
-                    ) : null}
-                    <p>현재 인원 / 최대 인원: {party.joinedCount}/{party.capacity}명</p>
-                    <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
-                    {!immediate ? <p>출발 시간: {formatDateTime(party.scheduled_at)}</p> : null}
-                    {note ? <p>계좌/메모: {note}</p> : null}
-                  </div>
-
-                  {party.isJoinable ? (
-                    <form action={joinPartyAction.bind(null, party.id)}>
-                      <button type="submit" className={buttonStyles("primary", true)}>바로 참여하기</button>
-                    </form>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
-                        지금은 참여할 수 없는 팟이지만 모집 중 상태는 확인할 수 있어요.
-                      </div>
-                      <Link href={`/parties/${party.id}`} className={buttonStyles("secondary", true)}>상세 보기</Link>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
+        <div className="space-y-5">
+          <PartyListSection title="곧 출발" description="20분 안에 출발하는 팟이에요. 가장 먼저 확인해보세요." parties={immediateParties} />
+          <PartyListSection title="예약 출발" description="조금 뒤에 출발하는 팟이에요." parties={reservedParties} />
         </div>
       ) : (
         <EmptyState title="지금 모집 중인 택시팟이 없어요" description="바로 참여할 수 있는 팟이 없다면 직접 모집을 시작해보세요." actionHref={buildCreateHref(q)} actionLabel="택시팟 만들기" />
@@ -130,4 +157,3 @@ export default async function PartiesPage({
     </div>
   );
 }
-

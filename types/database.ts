@@ -40,6 +40,14 @@ export interface PartyMember {
   joined_at: string;
 }
 
+export interface PartyMemberNote {
+  id: string;
+  party_id: string;
+  user_id: string;
+  note: string;
+  updated_at: string;
+}
+
 export interface Review {
   id: string;
   party_id: string;
@@ -75,6 +83,13 @@ export interface GuestbookEntry {
   created_at: string;
 }
 
+export interface GuestbookEntryLike {
+  id: string;
+  entry_id: string;
+  user_id: string;
+  created_at: string;
+}
+
 export interface PartyListItem extends TaxiParty {
   creatorNickname: string;
   lastRideAtWithCreator: string | null;
@@ -87,6 +102,7 @@ export interface PartyListItem extends TaxiParty {
 export interface PartyParticipant {
   profile: Profile;
   membership: PartyMember;
+  note: string | null;
 }
 
 export interface PartyDetail extends TaxiParty {
@@ -104,4 +120,3 @@ export interface ActivePartySnapshot extends TaxiParty {
   seatsLeft: number;
   myMembershipStatus: MemberStatus | null;
 }
-

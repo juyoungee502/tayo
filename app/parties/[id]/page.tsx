@@ -5,7 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { StatusPill } from "@/components/ui/status-pill";
 import { buttonStyles } from "@/components/ui/button";
-import { cancelPartyAction, joinPartyAction, leavePartyAction, markPartyDepartedAction, nudgePartyAction, updatePartyCapacityAction } from "@/lib/actions/app-actions";
+import {
+  cancelPartyAction,
+  joinPartyAction,
+  leavePartyAction,
+  markPartyDepartedAction,
+  nudgePartyAction,
+  savePartyMemberNoteAction,
+  updatePartyCapacityAction,
+} from "@/lib/actions/app-actions";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
 import { getPartyDetail } from "@/lib/queries/data";
 import { estimateTaxiShare, formatDateTime, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
@@ -43,6 +51,8 @@ export default async function PartyDetailPage({
   const canCancel = Boolean(user) && isCreator && isFuture && !isClosed;
   const canNudge = Boolean(user) && !isCreator && Boolean(isJoined) && isFuture && !isClosed;
   const canMarkDeparted = Boolean(user) && isCreator && !isClosed;
+  const canSaveFindNote = Boolean(user) && Boolean(party.currentUserMembership) && !isClosed;
+  const currentUserNote = party.members.find((participant) => participant.profile.id === user?.id)?.note ?? "";
   const shouldPromptLogin = !user && isFuture && seatsLeft > 0 && !isClosed;
   const urgent = isUrgentParty(party.note);
   const cleanNote = stripUrgentMarker(party.note);
@@ -55,6 +65,7 @@ export default async function PartyDetailPage({
       {party.hasAnotherActiveParty && !isJoined ? <Notice variant="warning">이미 다른 활성 택시팟에 참여 중이라 새 팟에 바로 합류할 수 없습니다.</Notice> : null}
       {hasMembershipHistory && !isJoined ? <Notice variant="info">이 택시팟에는 이미 참여 이력이 있어 다시 참여 버튼을 노출하지 않습니다.</Notice> : null}
       {party.isFeedbackDue && !party.hasSubmittedFeedback ? <Notice variant="warning">피드백 기한이 도래했습니다. <Link href={`/feedback/${party.id}`} className="font-semibold underline">후기/신고 페이지로 이동</Link></Notice> : null}
+      {!party.isFeedbackDue && party.status === "completed" && party.currentUserMembership ? <Notice variant="info">운행은 완료됐고, 피드백은 출발 1시간 뒤부터 열립니다. <Link href={`/feedback/${party.id}`} className="font-semibold underline">피드백 페이지 바로가기</Link></Notice> : null}
 
       <Card className="bg-mesh-glow">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -88,6 +99,27 @@ export default async function PartyDetailPage({
         </div>
       </Card>
 
+      {canSaveFindNote ? (
+        <Card>
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slateBlue">서로 찾기 메모</h2>
+              <p className="mt-1 text-sm text-slate-500">옷차림이나 서 있는 위치를 짧게 남겨두면 서로 찾기 쉬워져요.</p>
+            </div>
+            <form action={savePartyMemberNoteAction.bind(null, party.id)} className="space-y-3">
+              <textarea
+                name="note"
+                defaultValue={currentUserNote}
+                maxLength={80}
+                placeholder="예: 검은 패딩 입고 정문 앞에서 기다리고 있어요"
+                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring"
+              />
+              <button type="submit" className={buttonStyles("secondary")}>메모 저장</button>
+            </form>
+          </div>
+        </Card>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-[1fr,0.9fr]">
         <Card>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -107,6 +139,7 @@ export default async function PartyDetailPage({
                   </div>
                   <p className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">{participant.membership.user_id === party.creator_id ? "작성자" : participant.membership.status}</p>
                 </div>
+                {participant.note ? <p className="mt-3 rounded-2xl bg-white px-3 py-2 text-xs text-slate-600">찾기 메모: {participant.note}</p> : null}
               </div>
             ))}
           </div>
@@ -146,6 +179,3 @@ export default async function PartyDetailPage({
     </div>
   );
 }
-
-
-

@@ -4,10 +4,12 @@ import type {
   AccountDeletionRequest,
   ActivePartySnapshot,
   GuestbookEntry,
+  GuestbookEntryLike,
   MemberStatus,
   PartyDetail,
   PartyListItem,
   PartyMember,
+  PartyMemberNote,
   Profile,
   Report,
   TaxiParty,
@@ -75,6 +77,52 @@ async function fetchPartyMembers(supabase: ServerSupabaseClient, partyIds: strin
   }
 
   return (data ?? []) as PartyMember[];
+}
+
+async function fetchPartyMemberNotes(supabase: ServerSupabaseClient, partyId: string) {
+  const { data, error } = await supabase.from("party_member_notes").select("*").eq("party_id", partyId);
+
+  if (error) {
+    throw new Error("파티원 메모를 불러오지 못했습니다.");
+  }
+
+  return new Map((data as PartyMemberNote[]).map((note) => [note.user_id, note.note]));
+}
+
+async function fetchGuestbookLikeSummary(
+  supabase: ServerSupabaseClient,
+  entryIds: string[],
+  currentUserId: string | null,
+) {
+  if (entryIds.length === 0) {
+    return {
+      likeCountMap: new Map<string, number>(),
+      likedEntryIds: new Set<string>(),
+    };
+  }
+
+  const { data, error } = await supabase.from("guestbook_entry_likes").select("entry_id, user_id").in("entry_id", entryIds);
+
+  if (error) {
+    throw new Error("방명록 좋아요를 불러오지 못했습니다.");
+  }
+
+  const likeRows = (data ?? []) as Pick<GuestbookEntryLike, "entry_id" | "user_id">[];
+  const likeCountMap = new Map<string, number>();
+  const likedEntryIds = new Set<string>();
+
+  likeRows.forEach((like) => {
+    likeCountMap.set(like.entry_id, (likeCountMap.get(like.entry_id) ?? 0) + 1);
+
+    if (currentUserId && like.user_id === currentUserId) {
+      likedEntryIds.add(like.entry_id);
+    }
+  });
+
+  return {
+    likeCountMap,
+    likedEntryIds,
+  };
 }
 
 async function fetchActivePartyIdsForUser(
@@ -397,6 +445,7 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     [...new Set([party.creator_id, ...members.map((member) => member.user_id)])],
   );
   const currentUserMembership = user ? members.find((member) => member.user_id === user.id) ?? null : null;
+  const memberNotesMap = user ? await fetchPartyMemberNotes(supabase, partyId) : new Map<string, string>();
   const joinedCount = members.filter((member) => member.status === "joined").length;
   const { data: reviewData } = user
     ? await supabase.from("reviews").select("id").eq("party_id", partyId).eq("reviewer_id", user.id).maybeSingle()
@@ -411,6 +460,7 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     creator: participantProfiles.get(party.creator_id) ?? null,
     members: members.map((member) => ({
       membership: member,
+      note: memberNotesMap.get(member.user_id) ?? null,
       profile:
         participantProfiles.get(member.user_id) ?? {
           id: member.user_id,
@@ -491,7 +541,7 @@ export async function getMyPageData() {
 }
 
 export async function getWaitingPageData() {
-  const { supabase, profile } = await getOptionalAuthContext();
+  const { supabase, user, profile } = await getOptionalAuthContext();
   const { data, error } = await supabase
     .from("guestbook_entries")
     .select("*")
@@ -507,15 +557,23 @@ export async function getWaitingPageData() {
     supabase,
     [...new Set(entries.map((entry) => entry.user_id))],
   );
+  const { likeCountMap, likedEntryIds } = await fetchGuestbookLikeSummary(
+    supabase,
+    entries.map((entry) => entry.id),
+    user?.id ?? null,
+  );
 
   return {
     profile,
     entries: entries.map((entry) => ({
       ...entry,
       nickname: profilesMap.get(entry.user_id)?.nickname ?? "익명",
+      likeCount: likeCountMap.get(entry.id) ?? 0,
+      likedByMe: likedEntryIds.has(entry.id),
     })),
   };
 }
+
 export async function getAdminPageData() {
   const { supabase } = await requireAdmin();
   const [{ data: users }, { data: parties }, { data: reports }, { data: deletionRequests }] = await Promise.all([
@@ -540,6 +598,13 @@ export async function getAdminPageData() {
     deletionRequests: (deletionRequests ?? []) as AccountDeletionRequest[],
   };
 }
+
+
+
+
+
+
+
 
 
 
