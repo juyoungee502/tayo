@@ -2,6 +2,7 @@
 import { getOptionalAuthContext, requireAdmin, requireAuth, type ServerSupabaseClient } from "@/lib/queries/auth";
 import type {
   AccountDeletionRequest,
+  ActivePartySnapshot,
   MemberStatus,
   PartyDetail,
   PartyListItem,
@@ -207,6 +208,46 @@ async function decoratePartyList(
 export async function getPendingFeedbackPartiesForCurrentUser() {
   const { supabase, user } = await requireAuth();
   return getPendingFeedbackPartiesForUser(supabase, user.id);
+}
+
+export async function getActivePartySnapshotForCurrentUser(): Promise<ActivePartySnapshot | null> {
+  const { supabase, user } = await getOptionalAuthContext();
+
+  if (!user) {
+    return null;
+  }
+
+  const activePartyId = await fetchActivePartyId(supabase, user.id);
+
+  if (!activePartyId) {
+    return null;
+  }
+
+  const { data: partyData, error } = await supabase
+    .from("taxi_parties")
+    .select("*")
+    .eq("id", activePartyId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("현재 참여 중인 택시팟을 불러오지 못했습니다.");
+  }
+
+  if (!partyData) {
+    return null;
+  }
+
+  const party = partyData as TaxiParty;
+  const members = await fetchPartyMembers(supabase, [activePartyId]);
+  const joinedMembers = members.filter((member) => member.status === "joined");
+  const myMembership = members.find((member) => member.user_id === user.id) ?? null;
+
+  return {
+    ...party,
+    joinedCount: joinedMembers.length,
+    seatsLeft: Math.max(party.capacity - joinedMembers.length, 0),
+    myMembershipStatus: (myMembership?.status as MemberStatus | undefined) ?? null,
+  } satisfies ActivePartySnapshot;
 }
 
 export async function getHomePageData() {
@@ -417,3 +458,7 @@ export async function getAdminPageData() {
     deletionRequests: (deletionRequests ?? []) as AccountDeletionRequest[],
   };
 }
+
+
+
+

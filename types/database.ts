@@ -90,3 +90,9 @@ export interface PartyDetail extends TaxiParty {
   isFeedbackDue: boolean;
   hasAnotherActiveParty: boolean;
 }
+
+export interface ActivePartySnapshot extends TaxiParty {
+  joinedCount: number;
+  seatsLeft: number;
+  myMembershipStatus: MemberStatus | null;
+}
