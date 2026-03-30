@@ -94,6 +94,9 @@ export async function createPartyAction(_: ActionState, formData: FormData): Pro
 export async function updateProfileAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = profileSchema.safeParse({
     nickname: formData.get("nickname"),
+    department: formData.get("department"),
+    studentNumber: formData.get("studentNumber"),
+    profileMessage: formData.get("profileMessage"),
   });
 
   if (!parsed.success) {
@@ -102,7 +105,15 @@ export async function updateProfileAction(_: ActionState, formData: FormData): P
 
   try {
     const { supabase, user } = await requireAuth();
-    const { error } = await supabase.from("profiles").update({ nickname: parsed.data.nickname }).eq("id", user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        nickname: parsed.data.nickname,
+        department: parsed.data.department || null,
+        student_number: parsed.data.studentNumber || null,
+        profile_message: parsed.data.profileMessage || null,
+      })
+      .eq("id", user.id);
 
     if (error) {
       throw new Error(error.message || "프로필을 수정하지 못했습니다.");
@@ -110,6 +121,7 @@ export async function updateProfileAction(_: ActionState, formData: FormData): P
 
     revalidatePath("/mypage");
     revalidatePath("/home");
+    revalidatePath("/waiting");
 
     return {
       success: true,
@@ -269,6 +281,38 @@ export async function updatePartyCapacityAction(partyId: string, formData: FormD
   redirect(`/parties/${partyId}?message=${encodeURIComponent("정원이 업데이트되었습니다.")}`);
 }
 
+export async function updateDepartureChecklistAction(partyId: string, formData: FormData) {
+  const field = String(formData.get("field") ?? "");
+  const value = String(formData.get("value") ?? "false") === "true";
+
+  if (!["taxi_called", "everyone_ready"].includes(field)) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("체크리스트 항목을 확인하지 못했습니다.")}`);
+  }
+
+  const { supabase, user } = await requireAuth();
+  const { data: party, error: partyError } = await supabase
+    .from("taxi_parties")
+    .select("creator_id, status")
+    .eq("id", partyId)
+    .maybeSingle();
+
+  if (partyError || !party) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("택시팟 정보를 찾지 못했습니다.")}`);
+  }
+
+  if (party.creator_id !== user.id) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("생성자만 체크리스트를 수정할 수 있습니다.")}`);
+  }
+
+  const { error } = await supabase.from("taxi_parties").update({ [field]: value }).eq("id", partyId);
+
+  if (error) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent(error.message || "체크리스트 저장에 실패했습니다.")}`);
+  }
+
+  revalidatePath(`/parties/${partyId}`);
+  redirect(`/parties/${partyId}?message=${encodeURIComponent("출발 체크리스트를 업데이트했어요.")}`);
+}
 
 export async function markPartyDepartedAction(partyId: string) {
   const { supabase, user } = await requireAuth();
@@ -315,8 +359,9 @@ export async function markPartyDepartedAction(partyId: string) {
   revalidatePath("/parties");
   revalidatePath("/home");
   revalidatePath("/mypage");
-  redirect(`/parties/${partyId}?message=${encodeURIComponent("출발 상태로 변경했어요. 이 팟은 운행 완료로 정리됩니다.")}`);
+  redirect(`/feedback/${partyId}?fromDeparture=1&message=${encodeURIComponent("출발 상태로 변경했어요. 피드백도 이어서 남길 수 있어요.")}`);
 }
+
 export async function nudgePartyAction(partyId: string) {
   const { supabase, user } = await requireAuth();
   await supabase.rpc("complete_due_parties");
@@ -353,6 +398,7 @@ export async function nudgePartyAction(partyId: string) {
   revalidatePath(`/parties/${partyId}`);
   redirect(`/parties/${partyId}?message=${encodeURIComponent("지금 출발해요 요청을 보냈어요. 바로 모일 준비를 해주세요.")}`);
 }
+
 export async function addGuestbookEntryAction(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim();
 
@@ -377,6 +423,28 @@ export async function addGuestbookEntryAction(formData: FormData) {
   revalidatePath("/waiting");
   redirect(`/waiting?message=${encodeURIComponent("방명록이 등록되었어요.")}`);
 }
+
+export async function shareRandomMenuAction(formData: FormData) {
+  const menu = String(formData.get("menu") ?? "").trim();
+
+  if (!menu) {
+    redirect(`/waiting?error=${encodeURIComponent("공유할 메뉴를 먼저 골라주세요.")}`);
+  }
+
+  const { supabase, user } = await requireAuth();
+  const { error } = await supabase.from("guestbook_entries").insert({
+    user_id: user.id,
+    message: `오늘의 랜덤 메뉴: ${menu}`,
+  });
+
+  if (error) {
+    redirect(`/waiting?error=${encodeURIComponent(error.message || "랜덤 메뉴 공유에 실패했습니다.")}`);
+  }
+
+  revalidatePath("/waiting");
+  redirect(`/waiting?message=${encodeURIComponent("랜덤 메뉴를 방명록에 공유했어요.")}`);
+}
+
 export async function savePartyMemberNoteAction(partyId: string, formData: FormData) {
   const note = String(formData.get("note") ?? "").trim();
 
@@ -451,6 +519,7 @@ export async function toggleGuestbookLikeAction(entryId: string) {
   revalidatePath("/waiting");
   redirect("/waiting");
 }
+
 async function runPartyMutation(
   partyId: string,
   action: "join_taxi_party" | "leave_taxi_party" | "cancel_taxi_party",
@@ -484,7 +553,3 @@ export async function leavePartyAction(partyId: string) {
 export async function cancelPartyAction(partyId: string) {
   await runPartyMutation(partyId, "cancel_taxi_party", "택시팟을 취소했습니다.");
 }
-
-
-
-

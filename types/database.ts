@@ -9,6 +9,9 @@ export interface Profile {
   nickname: string;
   school: string;
   role: UserRole;
+  department: string | null;
+  student_number: string | null;
+  profile_message: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +31,8 @@ export interface TaxiParty {
   capacity: number;
   note: string | null;
   status: PartyStatus;
+  taxi_called: boolean;
+  everyone_ready: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -93,6 +98,9 @@ export interface GuestbookEntryLike {
 export interface PartyListItem extends TaxiParty {
   creatorNickname: string;
   lastRideAtWithCreator: string | null;
+  sharedRideCount: number;
+  creatorAverageRating: number | null;
+  creatorReviewCount: number;
   joinedCount: number;
   seatsLeft: number;
   myMembershipStatus: MemberStatus | null;
@@ -108,6 +116,8 @@ export interface PartyParticipant {
 export interface PartyDetail extends TaxiParty {
   creator: Profile | null;
   members: PartyParticipant[];
+  creatorAverageRating: number | null;
+  creatorReviewCount: number;
   joinedCount: number;
   currentUserMembership: PartyMember | null;
   hasSubmittedFeedback: boolean;

@@ -53,10 +53,10 @@ export default async function WaitingPage({
             <p className="mt-1 text-sm text-slate-500">택시 오기 전에 잠깐 보고 웃고 지나갈 수 있는 공간이에요.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <RandomMenuPicker />
+            <RandomMenuPicker canShare={Boolean(waitingData?.profile)} />
             <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-              <p className="font-semibold text-slateBlue">제휴 대기중</p>
-              <p className="mt-2">언젠가 학교 앞 맛집들이 이 칸을 가득 채워주길 기다리는 중입니다.</p>
+              <p className="font-semibold text-slateBlue">오늘의 한 줄</p>
+              <p className="mt-2">급한 하루도 같이 타면 조금 덜 막막해져요.</p>
             </div>
           </div>
         </div>
@@ -95,8 +95,11 @@ export default async function WaitingPage({
             {(waitingData?.entries ?? []).length > 0 ? (
               waitingData?.entries.map((entry) => (
                 <div key={entry.id} className="rounded-3xl border border-slate-200 bg-white/90 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-slateBlue">{entry.nickname}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slateBlue">{entry.nickname}</p>
+                      {entry.profileMessage ? <p className="text-xs text-slate-400">{entry.profileMessage}</p> : null}
+                    </div>
                     <p className="text-[11px] text-slate-400">{formatDateTime(entry.created_at)}</p>
                   </div>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{entry.message}</p>

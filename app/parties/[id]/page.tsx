@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { StatusPill } from "@/components/ui/status-pill";
 import { buttonStyles } from "@/components/ui/button";
+import { SharePartyButton } from "@/components/ui/share-party-button";
 import {
   cancelPartyAction,
   joinPartyAction,
@@ -12,6 +13,7 @@ import {
   markPartyDepartedAction,
   nudgePartyAction,
   savePartyMemberNoteAction,
+  updateDepartureChecklistAction,
   updatePartyCapacityAction,
 } from "@/lib/actions/app-actions";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
@@ -74,6 +76,7 @@ export default async function PartyDetailPage({
               <h1 className="font-[var(--font-display)] text-3xl font-bold text-slateBlue">{party.departure_place_name}</h1>
               <StatusPill status={party.status} />
               {urgent ? <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-600">급해요</span> : null}
+              {seatsLeft === 1 && party.status === "recruiting" ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">마감 임박</span> : null}
             </div>
             <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
               <p>도착지: {party.destination_name}</p>
@@ -82,6 +85,7 @@ export default async function PartyDetailPage({
               <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
               <p>남은 자리 수: {seatsLeft}석</p>
               <p>생성자: {party.creator?.nickname ?? "알 수 없음"}</p>
+              {party.creatorReviewCount > 0 && party.creatorAverageRating ? <p>후기 평균: {party.creatorAverageRating} / 5.0 ({party.creatorReviewCount}개)</p> : null}
               {party.departure_detail ? <p className="sm:col-span-2">상세 위치: {party.departure_detail}</p> : null}
               {cleanNote ? <p className="sm:col-span-2">계좌/메모: {cleanNote}</p> : null}
             </div>
@@ -93,11 +97,43 @@ export default async function PartyDetailPage({
             {canNudge ? <form action={nudgePartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("secondary", true)}>지금 출발해요</button></form> : null}
             {canMarkDeparted ? <form action={markPartyDepartedAction.bind(null, party.id)}><button type="submit" className={buttonStyles("primary", true)}>출발했어요!</button></form> : null}
             {canCancel ? <form action={cancelPartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("danger", true)}>파티 취소</button></form> : null}
+            <SharePartyButton partyId={party.id} />
             {shouldPromptLogin ? <Link href="/login" className={buttonStyles("primary", true)}>로그인 후 참여하기</Link> : null}
             {!canJoin && !canLeave && !canCancel && !canNudge && !canMarkDeparted && !shouldPromptLogin ? <Notice variant="info">현재 상태에서는 추가 액션이 없습니다. 아래 정보로 상태를 확인해주세요.</Notice> : null}
           </div>
         </div>
       </Card>
+
+      {isCreator && !isClosed ? (
+        <Card>
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-slateBlue">출발 체크리스트</h2>
+              <p className="mt-1 text-sm text-slate-500">출발 전 준비 상태를 가볍게 표시해둘 수 있어요.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <form action={updateDepartureChecklistAction.bind(null, party.id)} className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
+                <input type="hidden" name="field" value="taxi_called" />
+                <input type="hidden" name="value" value={party.taxi_called ? "false" : "true"} />
+                <p className="text-sm font-semibold text-slateBlue">택시 호출</p>
+                <p className="mt-1 text-sm text-slate-500">{party.taxi_called ? "택시를 이미 불렀어요." : "아직 호출 전이에요."}</p>
+                <button type="submit" className={`${buttonStyles("secondary")} mt-3 w-full`}>
+                  {party.taxi_called ? "호출 전으로 되돌리기" : "택시 잡았어요"}
+                </button>
+              </form>
+              <form action={updateDepartureChecklistAction.bind(null, party.id)} className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
+                <input type="hidden" name="field" value="everyone_ready" />
+                <input type="hidden" name="value" value={party.everyone_ready ? "false" : "true"} />
+                <p className="text-sm font-semibold text-slateBlue">전원 도착</p>
+                <p className="mt-1 text-sm text-slate-500">{party.everyone_ready ? "다 모였어요." : "아직 모이는 중이에요."}</p>
+                <button type="submit" className={`${buttonStyles("secondary")} mt-3 w-full`}>
+                  {party.everyone_ready ? "다시 확인중으로 바꾸기" : "다 모였어요"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </Card>
+      ) : null}
 
       {canSaveFindNote ? (
         <Card>
@@ -136,6 +172,9 @@ export default async function PartyDetailPage({
                   <div>
                     <p className="font-semibold text-slateBlue">{participant.profile.nickname}</p>
                     <p className="text-xs text-slate-500">{participant.profile.school}</p>
+                    {participant.profile.department || participant.profile.student_number ? (
+                      <p className="text-xs text-slate-400">{[participant.profile.department, participant.profile.student_number].filter(Boolean).join(" · ")}</p>
+                    ) : null}
                   </div>
                   <p className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">{participant.membership.user_id === party.creator_id ? "작성자" : participant.membership.status}</p>
                 </div>

@@ -48,6 +48,7 @@ function PartyListSection({
         const estimatedShare = estimateTaxiShare(party.joinedCount, party.capacity, party.departure_place_name);
         const urgent = isUrgentParty(party.note);
         const note = stripUrgentMarker(party.note);
+        const closingSoon = party.seatsLeft === 1 && party.status === "recruiting";
 
         return (
           <Card key={party.id} className={`p-5 ${immediate ? "border-brand-300 shadow-lg shadow-brand-200/60" : ""}`}>
@@ -58,6 +59,7 @@ function PartyListSection({
                     <Link href={`/parties/${party.id}`} className="text-lg font-semibold text-slateBlue">{party.departure_place_name}</Link>
                     {urgent ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">급해요</span> : null}
                     {immediate ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">곧 출발</span> : null}
+                    {closingSoon ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">마감 임박</span> : null}
                   </div>
                   {party.destination_name !== DEFAULT_DESTINATION.placeName ? <p className="text-sm text-slate-500">{party.destination_name}</p> : null}
                 </div>
@@ -67,8 +69,13 @@ function PartyListSection({
               </div>
 
               <div className="space-y-1 text-sm text-slate-600">
-                {party.lastRideAtWithCreator ? (
-                  <p className="text-xs text-brand-700">{formatDate(party.lastRideAtWithCreator)}에 {party.creatorNickname}님과 같이 탑승했어요!</p>
+                {party.sharedRideCount > 0 ? (
+                  <p className="text-xs text-brand-700">
+                    {formatDate(party.lastRideAtWithCreator ?? new Date().toISOString())}에 {party.creatorNickname}님과 같이 탑승했고, 지금까지 총 {party.sharedRideCount}번 같이 탔어요.
+                  </p>
+                ) : null}
+                {party.creatorReviewCount > 0 && party.creatorAverageRating ? (
+                  <p className="text-xs text-slate-500">생성자 후기 요약: 평균 {party.creatorAverageRating} / 5.0 ({party.creatorReviewCount}개)</p>
                 ) : null}
                 <p>현재 인원 / 최대 인원: {party.joinedCount}/{party.capacity}명</p>
                 <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
@@ -126,10 +133,10 @@ export default async function PartiesPage({
           {chooser || !q ? (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
-                <Link href="/parties?q=부천역" className={`${buttonStyles("secondary", true)} text-sm`}>부천역</Link>
-                <Link href="/parties?q=송내역" className={`${buttonStyles("secondary", true)} text-sm`}>송내역</Link>
-                <Link href="/parties?q=온수역" className={`${buttonStyles("secondary", true)} text-sm`}>온수역</Link>
                 <Link href="/parties?q=역곡역" className={`${buttonStyles("secondary", true)} text-sm`}>역곡역</Link>
+                <Link href="/parties?q=온수역" className={`${buttonStyles("secondary", true)} text-sm`}>온수역</Link>
+                <Link href="/parties?q=소사역" className={`${buttonStyles("secondary", true)} text-sm`}>소사역</Link>
+                <Link href="/parties?q=개봉역" className={`${buttonStyles("secondary", true)} text-sm`}>개봉역</Link>
               </div>
 
               <form className="space-y-2">

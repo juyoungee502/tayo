@@ -25,6 +25,29 @@ const PARTY_STATUS_PRIORITY: Record<TaxiParty["status"], number> = {
   cancelled: 4,
 };
 
+function normalizeProfile(data: Partial<Profile> & Pick<Profile, "id" | "email" | "nickname" | "school" | "role" | "created_at" | "updated_at">): Profile {
+  return {
+    ...data,
+    department: data.department ?? null,
+    student_number: data.student_number ?? null,
+    profile_message: data.profile_message ?? null,
+  };
+}
+
+function normalizeParty(data: Partial<TaxiParty> & Pick<TaxiParty, "id" | "creator_id" | "school" | "departure_place_name" | "destination_name" | "scheduled_at" | "capacity" | "status" | "created_at" | "updated_at">): TaxiParty {
+  return {
+    ...data,
+    departure_detail: data.departure_detail ?? null,
+    departure_lat: data.departure_lat ?? null,
+    departure_lng: data.departure_lng ?? null,
+    destination_lat: data.destination_lat ?? null,
+    destination_lng: data.destination_lng ?? null,
+    note: data.note ?? null,
+    taxi_called: data.taxi_called ?? false,
+    everyone_ready: data.everyone_ready ?? false,
+  };
+}
+
 function getDateRange(date: string) {
   const start = new Date(`${date}T00:00:00+09:00`);
   const end = new Date(start);
@@ -62,7 +85,10 @@ async function fetchProfilesMap(supabase: ServerSupabaseClient, ids: string[]) {
     throw new Error("프로필 목록을 불러오지 못했습니다.");
   }
 
-  return new Map((data as Profile[]).map((profile) => [profile.id, profile]));
+  return new Map((data ?? []).map((profile) => {
+    const normalized = normalizeProfile(profile as Profile);
+    return [normalized.id, normalized] as const;
+  }));
 }
 
 async function fetchPartyMembers(supabase: ServerSupabaseClient, partyIds: string[]) {
@@ -83,6 +109,10 @@ async function fetchPartyMemberNotes(supabase: ServerSupabaseClient, partyId: st
   const { data, error } = await supabase.from("party_member_notes").select("*").eq("party_id", partyId);
 
   if (error) {
+    if (error.message.includes("does not exist")) {
+      return new Map<string, string>();
+    }
+
     throw new Error("파티원 메모를 불러오지 못했습니다.");
   }
 
@@ -104,6 +134,13 @@ async function fetchGuestbookLikeSummary(
   const { data, error } = await supabase.from("guestbook_entry_likes").select("entry_id, user_id").in("entry_id", entryIds);
 
   if (error) {
+    if (error.message.includes("does not exist")) {
+      return {
+        likeCountMap: new Map<string, number>(),
+        likedEntryIds: new Set<string>(),
+      };
+    }
+
     throw new Error("방명록 좋아요를 불러오지 못했습니다.");
   }
 
@@ -207,10 +244,12 @@ async function getPendingFeedbackPartiesForUser(supabase: ServerSupabaseClient, 
 
   const reviewedPartyIds = new Set((reviews ?? []).map((review) => review.party_id));
 
-  return ((parties ?? []) as TaxiParty[]).filter((party) => !reviewedPartyIds.has(party.id));
+  return ((parties ?? []) as TaxiParty[])
+    .map((party) => normalizeParty(party as TaxiParty))
+    .filter((party) => !reviewedPartyIds.has(party.id));
 }
 
-async function fetchLastSharedRideDatesWithCreators(
+async function fetchSharedRideStatsWithCreators(
   supabase: ServerSupabaseClient,
   currentUserId: string,
   creatorIds: string[],
@@ -218,7 +257,7 @@ async function fetchLastSharedRideDatesWithCreators(
   const uniqueCreatorIds = [...new Set(creatorIds.filter((creatorId) => creatorId !== currentUserId))];
 
   if (uniqueCreatorIds.length === 0) {
-    return new Map<string, string>();
+    return new Map<string, { lastRideAt: string; count: number }>();
   }
 
   const { data: memberships, error: membershipError } = await supabase
@@ -234,7 +273,7 @@ async function fetchLastSharedRideDatesWithCreators(
   const completedPartyIds = (memberships ?? []).map((membership) => membership.party_id).filter(Boolean);
 
   if (completedPartyIds.length === 0) {
-    return new Map<string, string>();
+    return new Map<string, { lastRideAt: string; count: number }>();
   }
 
   const { data: parties, error: partyError } = await supabase
@@ -249,15 +288,187 @@ async function fetchLastSharedRideDatesWithCreators(
     throw new Error("이전 동승 기록을 불러오지 못했습니다.");
   }
 
-  const lastRideMap = new Map<string, string>();
+  const statsMap = new Map<string, { lastRideAt: string; count: number }>();
 
   for (const party of parties ?? []) {
-    if (!lastRideMap.has(party.creator_id)) {
-      lastRideMap.set(party.creator_id, party.scheduled_at);
+    const current = statsMap.get(party.creator_id);
+
+    if (!current) {
+      statsMap.set(party.creator_id, {
+        lastRideAt: party.scheduled_at,
+        count: 1,
+      });
+      continue;
     }
+
+    statsMap.set(party.creator_id, {
+      lastRideAt: current.lastRideAt,
+      count: current.count + 1,
+    });
   }
 
-  return lastRideMap;
+  return statsMap;
+}
+
+async function fetchCreatorReviewSummary(
+  supabase: ServerSupabaseClient,
+  creatorIds: string[],
+) {
+  const uniqueCreatorIds = [...new Set(creatorIds.filter(Boolean))];
+
+  if (uniqueCreatorIds.length === 0) {
+    return new Map<string, { average: number | null; count: number }>();
+  }
+
+  const { data: creatorParties, error: partyError } = await supabase
+    .from("taxi_parties")
+    .select("id, creator_id")
+    .in("creator_id", uniqueCreatorIds)
+    .neq("status", "cancelled");
+
+  if (partyError) {
+    throw new Error("생성자 후기 요약을 불러오지 못했습니다.");
+  }
+
+  const partyRows = (creatorParties ?? []) as Array<Pick<TaxiParty, "id" | "creator_id">>;
+  const partyIds = partyRows.map((party) => party.id);
+
+  if (partyIds.length === 0) {
+    return new Map<string, { average: number | null; count: number }>();
+  }
+
+  const { data: reviews, error: reviewError } = await supabase
+    .from("reviews")
+    .select("party_id, punctuality_rating, comfort_rating")
+    .in("party_id", partyIds);
+
+  if (reviewError) {
+    throw new Error("생성자 후기 요약을 불러오지 못했습니다.");
+  }
+
+  const creatorByPartyId = new Map(partyRows.map((party) => [party.id, party.creator_id]));
+  const aggregateMap = new Map<string, { score: number; count: number }>();
+
+  for (const review of reviews ?? []) {
+    const creatorId = creatorByPartyId.get(review.party_id);
+
+    if (!creatorId) {
+      continue;
+    }
+
+    const averageForReview = (review.punctuality_rating + review.comfort_rating) / 2;
+    const current = aggregateMap.get(creatorId) ?? { score: 0, count: 0 };
+    aggregateMap.set(creatorId, {
+      score: current.score + averageForReview,
+      count: current.count + 1,
+    });
+  }
+
+  const summaryMap = new Map<string, { average: number | null; count: number }>();
+
+  uniqueCreatorIds.forEach((creatorId) => {
+    const aggregate = aggregateMap.get(creatorId);
+
+    if (!aggregate || aggregate.count === 0) {
+      summaryMap.set(creatorId, { average: null, count: 0 });
+      return;
+    }
+
+    summaryMap.set(creatorId, {
+      average: Number((aggregate.score / aggregate.count).toFixed(1)),
+      count: aggregate.count,
+    });
+  });
+
+  return summaryMap;
+}
+
+async function fetchFavoriteDepartures(supabase: ServerSupabaseClient, userId: string) {
+  const { data: memberships, error: membershipError } = await supabase
+    .from("party_members")
+    .select("party_id")
+    .eq("user_id", userId)
+    .in("status", ["joined", "completed"]);
+
+  if (membershipError) {
+    throw new Error("자주 쓰는 출발지를 불러오지 못했습니다.");
+  }
+
+  const partyIds = (memberships ?? []).map((membership) => membership.party_id).filter(Boolean);
+
+  if (partyIds.length === 0) {
+    return [] as string[];
+  }
+
+  const { data: parties, error: partyError } = await supabase
+    .from("taxi_parties")
+    .select("departure_place_name")
+    .in("id", partyIds)
+    .order("scheduled_at", { ascending: false });
+
+  if (partyError) {
+    throw new Error("자주 쓰는 출발지를 불러오지 못했습니다.");
+  }
+
+  const counter = new Map<string, number>();
+
+  for (const party of parties ?? []) {
+    const departure = party.departure_place_name?.trim();
+
+    if (!departure) {
+      continue;
+    }
+
+    counter.set(departure, (counter.get(departure) ?? 0) + 1);
+  }
+
+  return [...counter.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([departure]) => departure);
+}
+
+async function fetchTodayStats(supabase: ServerSupabaseClient) {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  const { data: parties, error: partyError } = await supabase
+    .from("taxi_parties")
+    .select("id")
+    .eq("status", "completed")
+    .gte("scheduled_at", start.toISOString())
+    .lt("scheduled_at", end.toISOString());
+
+  if (partyError) {
+    throw new Error("오늘 탑승 통계를 불러오지 못했습니다.");
+  }
+
+  const partyIds = (parties ?? []).map((party) => party.id);
+
+  if (partyIds.length === 0) {
+    return {
+      completedParties: 0,
+      riders: 0,
+    };
+  }
+
+  const { count, error: memberError } = await supabase
+    .from("party_members")
+    .select("id", { count: "exact", head: true })
+    .in("party_id", partyIds)
+    .in("status", ["joined", "completed"]);
+
+  if (memberError) {
+    throw new Error("오늘 탑승 통계를 불러오지 못했습니다.");
+  }
+
+  return {
+    completedParties: partyIds.length,
+    riders: count ?? 0,
+  };
 }
 
 async function decoratePartyList(
@@ -265,16 +476,17 @@ async function decoratePartyList(
   parties: TaxiParty[],
   currentUserId: string | null,
 ) {
-  const partyIds = parties.map((party) => party.id);
+  const normalizedParties = parties.map((party) => normalizeParty(party));
+  const partyIds = normalizedParties.map((party) => party.id);
   const members = await fetchPartyMembers(supabase, partyIds);
-  const creatorIds = [...new Set(parties.map((party) => party.creator_id))];
-  const profilesMap = await fetchProfilesMap(
-    supabase,
-    creatorIds,
-  );
-  const [activePartyId, lastRideMap] = await Promise.all([
+  const creatorIds = [...new Set(normalizedParties.map((party) => party.creator_id))];
+  const profilesMap = await fetchProfilesMap(supabase, creatorIds);
+  const [activePartyId, sharedRideStatsMap, creatorReviewSummaryMap] = await Promise.all([
     currentUserId ? fetchActivePartyId(supabase, currentUserId) : Promise.resolve(null),
-    currentUserId ? fetchLastSharedRideDatesWithCreators(supabase, currentUserId, creatorIds) : Promise.resolve(new Map<string, string>()),
+    currentUserId
+      ? fetchSharedRideStatsWithCreators(supabase, currentUserId, creatorIds)
+      : Promise.resolve(new Map<string, { lastRideAt: string; count: number }>()),
+    fetchCreatorReviewSummary(supabase, creatorIds),
   ]);
   const membersByPartyId = new Map<string, PartyMember[]>();
 
@@ -284,7 +496,7 @@ async function decoratePartyList(
     membersByPartyId.set(member.party_id, bucket);
   });
 
-  return parties.map((party) => {
+  return normalizedParties.map((party) => {
     const partyMembers = membersByPartyId.get(party.id) ?? [];
     const joinedMembers = partyMembers.filter((member) => member.status === "joined");
     const myMembership = currentUserId
@@ -296,11 +508,16 @@ async function decoratePartyList(
     const isRecruiting = party.status === "recruiting";
     const blockedByAnotherActiveParty = Boolean(currentUserId && activePartyId && activePartyId !== party.id);
     const isJoinable = isFuture && isRecruiting && seatsLeft > 0 && !myMembership && !blockedByAnotherActiveParty;
+    const rideStats = sharedRideStatsMap.get(party.creator_id);
+    const reviewSummary = creatorReviewSummaryMap.get(party.creator_id) ?? { average: null, count: 0 };
 
     return {
       ...party,
       creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "익명",
-      lastRideAtWithCreator: lastRideMap.get(party.creator_id) ?? null,
+      lastRideAtWithCreator: rideStats?.lastRideAt ?? null,
+      sharedRideCount: rideStats?.count ?? 0,
+      creatorAverageRating: reviewSummary.average,
+      creatorReviewCount: reviewSummary.count,
       joinedCount,
       seatsLeft,
       myMembershipStatus: (myMembership?.status as MemberStatus | undefined) ?? null,
@@ -341,7 +558,7 @@ export async function getActivePartySnapshotForCurrentUser(): Promise<ActivePart
     return null;
   }
 
-  const party = partyData as TaxiParty;
+  const party = normalizeParty(partyData as TaxiParty);
   const members = await fetchPartyMembers(supabase, [activePartyId]);
   const joinedMembers = members.filter((member) => member.status === "joined");
   const myMembership = members.find((member) => member.user_id === user.id) ?? null;
@@ -356,37 +573,12 @@ export async function getActivePartySnapshotForCurrentUser(): Promise<ActivePart
 
 export async function getHomePageData() {
   const { supabase, user, profile } = await getOptionalAuthContext();
-  const pendingFeedbackParties = user ? await getPendingFeedbackPartiesForUser(supabase, user.id) : [];
-  const activePartyIds = user ? await fetchActivePartyIdsForUser(supabase, user.id) : [];
-  const { data: activeParties } = activePartyIds.length
-    ? await supabase.from("taxi_parties").select("*").in("id", activePartyIds).order("scheduled_at")
-    : { data: [] };
-
-  const upcomingParty = ((activeParties ?? []) as TaxiParty[])
-    .filter((party) => party.status !== "cancelled")
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0] ?? null;
-
-  const { data: partiesData, error } = await supabase
-    .from("taxi_parties")
-    .select("*")
-    .neq("status", "cancelled")
-    .gt("scheduled_at", new Date().toISOString())
-    .limit(8);
-
-  if (error) {
-    throw new Error("모집 중인 택시팟을 불러오지 못했습니다.");
-  }
-
-  const featuredParties = sortPartyList(
-    await decoratePartyList(supabase, (partiesData ?? []) as TaxiParty[], user?.id ?? null),
-  ).slice(0, 4);
 
   return {
     user,
     profile,
-    upcomingParty,
-    pendingFeedbackParties,
-    featuredParties,
+    favoriteDepartures: user ? await fetchFavoriteDepartures(supabase, user.id) : [],
+    todayStats: await fetchTodayStats(supabase),
   };
 }
 
@@ -438,19 +630,21 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     return null;
   }
 
-  const party = partyData as TaxiParty;
+  const party = normalizeParty(partyData as TaxiParty);
   const members = await fetchPartyMembers(supabase, [partyId]);
   const participantProfiles = await fetchProfilesMap(
     supabase,
     [...new Set([party.creator_id, ...members.map((member) => member.user_id)])],
   );
   const currentUserMembership = user ? members.find((member) => member.user_id === user.id) ?? null : null;
-  const memberNotesMap = user ? await fetchPartyMemberNotes(supabase, partyId) : new Map<string, string>();
+  const memberNotesMap = await fetchPartyMemberNotes(supabase, partyId);
   const joinedCount = members.filter((member) => member.status === "joined").length;
   const { data: reviewData } = user
     ? await supabase.from("reviews").select("id").eq("party_id", partyId).eq("reviewer_id", user.id).maybeSingle()
     : { data: null };
   const hasAnotherActiveParty = user ? Boolean(await fetchActivePartyId(supabase, user.id, partyId)) : false;
+  const creatorReviewSummaryMap = await fetchCreatorReviewSummary(supabase, [party.creator_id]);
+  const creatorReviewSummary = creatorReviewSummaryMap.get(party.creator_id) ?? { average: null, count: 0 };
   const isFeedbackDue =
     Boolean(currentUserMembership && FEEDBACK_ELIGIBLE_MEMBER_STATUSES.includes(currentUserMembership.status)) &&
     new Date(party.scheduled_at).getTime() <= Date.now() - FEEDBACK_DELAY_HOURS * 60 * 60 * 1000;
@@ -462,7 +656,8 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
       membership: member,
       note: memberNotesMap.get(member.user_id) ?? null,
       profile:
-        participantProfiles.get(member.user_id) ?? {
+        participantProfiles.get(member.user_id) ??
+        normalizeProfile({
           id: member.user_id,
           email: "",
           nickname: "알 수 없음",
@@ -470,8 +665,10 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
           role: "user",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        },
+        }),
     })),
+    creatorAverageRating: creatorReviewSummary.average,
+    creatorReviewCount: creatorReviewSummary.count,
     joinedCount,
     currentUserMembership,
     hasSubmittedFeedback: Boolean(reviewData),
@@ -531,9 +728,9 @@ export async function getMyPageData() {
   );
 
   return {
-    profile,
+    profile: normalizeProfile(profile as Profile),
     history: ((parties ?? []) as TaxiParty[]).map((party) => ({
-      ...party,
+      ...normalizeParty(party),
       membershipStatus: membershipByPartyId.get(party.id)?.status ?? null,
     })),
     deletionRequest: (deletionRequest as AccountDeletionRequest | null) ?? null,
@@ -564,10 +761,11 @@ export async function getWaitingPageData() {
   );
 
   return {
-    profile,
+    profile: profile ? normalizeProfile(profile as Profile) : null,
     entries: entries.map((entry) => ({
       ...entry,
       nickname: profilesMap.get(entry.user_id)?.nickname ?? "익명",
+      profileMessage: profilesMap.get(entry.user_id)?.profile_message ?? null,
       likeCount: likeCountMap.get(entry.id) ?? 0,
       likedByMe: likedEntryIds.has(entry.id),
     })),
@@ -588,8 +786,8 @@ export async function getAdminPageData() {
   const profilesMap = await fetchProfilesMap(supabase, relatedProfileIds);
 
   return {
-    users: (users ?? []) as Profile[],
-    parties: (parties ?? []) as TaxiParty[],
+    users: ((users ?? []) as Profile[]).map((user) => normalizeProfile(user)),
+    parties: ((parties ?? []) as TaxiParty[]).map((party) => normalizeParty(party)),
     reports: reportRows.map((report) => ({
       ...report,
       reporterName: profilesMap.get(report.reporter_id)?.nickname ?? report.reporter_id,
@@ -598,22 +796,3 @@ export async function getAdminPageData() {
     deletionRequests: (deletionRequests ?? []) as AccountDeletionRequest[],
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
