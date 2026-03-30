@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { StatusPill } from "@/components/ui/status-pill";
 import { buttonStyles } from "@/components/ui/button";
-import { cancelPartyAction, joinPartyAction, leavePartyAction, nudgePartyAction, updatePartyCapacityAction } from "@/lib/actions/app-actions";
+import { cancelPartyAction, joinPartyAction, leavePartyAction, markPartyDepartedAction, nudgePartyAction, updatePartyCapacityAction } from "@/lib/actions/app-actions";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
 import { getPartyDetail } from "@/lib/queries/data";
 import { estimateTaxiShare, formatDateTime, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
@@ -42,6 +42,7 @@ export default async function PartyDetailPage({
   const canLeave = Boolean(user) && !isCreator && Boolean(isJoined) && isFuture;
   const canCancel = Boolean(user) && isCreator && isFuture && !isClosed;
   const canNudge = Boolean(user) && !isCreator && Boolean(isJoined) && isFuture && !isClosed;
+  const canMarkDeparted = Boolean(user) && isCreator && !isClosed;
   const shouldPromptLogin = !user && isFuture && seatsLeft > 0 && !isClosed;
   const urgent = isUrgentParty(party.note);
   const cleanNote = stripUrgentMarker(party.note);
@@ -79,9 +80,10 @@ export default async function PartyDetailPage({
             {canJoin ? <form action={joinPartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("primary", true)}>참여하기</button></form> : null}
             {canLeave ? <form action={leavePartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("secondary", true)}>참여 취소</button></form> : null}
             {canNudge ? <form action={nudgePartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("secondary", true)}>지금 출발해요</button></form> : null}
+            {canMarkDeparted ? <form action={markPartyDepartedAction.bind(null, party.id)}><button type="submit" className={buttonStyles("primary", true)}>출발했어요!</button></form> : null}
             {canCancel ? <form action={cancelPartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("danger", true)}>파티 취소</button></form> : null}
             {shouldPromptLogin ? <Link href="/login" className={buttonStyles("primary", true)}>로그인 후 참여하기</Link> : null}
-            {!canJoin && !canLeave && !canCancel && !canNudge && !shouldPromptLogin ? <Notice variant="info">현재 상태에서는 추가 액션이 없습니다. 아래 정보로 상태를 확인해주세요.</Notice> : null}
+            {!canJoin && !canLeave && !canCancel && !canNudge && !canMarkDeparted && !shouldPromptLogin ? <Notice variant="info">현재 상태에서는 추가 액션이 없습니다. 아래 정보로 상태를 확인해주세요.</Notice> : null}
           </div>
         </div>
       </Card>
@@ -144,4 +146,6 @@ export default async function PartyDetailPage({
     </div>
   );
 }
+
+
 

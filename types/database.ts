@@ -68,6 +68,13 @@ export interface AccountDeletionRequest {
   created_at: string;
 }
 
+export interface GuestbookEntry {
+  id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+}
+
 export interface PartyListItem extends TaxiParty {
   creatorNickname: string;
   joinedCount: number;

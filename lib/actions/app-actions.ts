@@ -269,6 +269,54 @@ export async function updatePartyCapacityAction(partyId: string, formData: FormD
   redirect(`/parties/${partyId}?message=${encodeURIComponent("정원이 업데이트되었습니다.")}`);
 }
 
+
+export async function markPartyDepartedAction(partyId: string) {
+  const { supabase, user } = await requireAuth();
+  await supabase.rpc("complete_due_parties");
+
+  const { data: party, error: partyError } = await supabase
+    .from("taxi_parties")
+    .select("creator_id, status")
+    .eq("id", partyId)
+    .maybeSingle();
+
+  if (partyError || !party) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("택시팟 정보를 찾지 못했습니다.")}`);
+  }
+
+  if (party.creator_id !== user.id) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("생성자만 출발 상태를 확정할 수 있습니다.")}`);
+  }
+
+  if (party.status === "completed" || party.status === "cancelled" || party.status === "expired") {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent("이미 종료된 택시팟입니다.")}`);
+  }
+
+  const { error: partyUpdateError } = await supabase
+    .from("taxi_parties")
+    .update({ status: "completed" })
+    .eq("id", partyId);
+
+  if (partyUpdateError) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent(partyUpdateError.message || "출발 상태 반영에 실패했습니다.")}`);
+  }
+
+  const { error: memberUpdateError } = await supabase
+    .from("party_members")
+    .update({ status: "completed" })
+    .eq("party_id", partyId)
+    .eq("status", "joined");
+
+  if (memberUpdateError) {
+    redirect(`/parties/${partyId}?error=${encodeURIComponent(memberUpdateError.message || "참여자 상태 반영에 실패했습니다.")}`);
+  }
+
+  revalidatePath(`/parties/${partyId}`);
+  revalidatePath("/parties");
+  revalidatePath("/home");
+  revalidatePath("/mypage");
+  redirect(`/parties/${partyId}?message=${encodeURIComponent("출발 상태로 변경했어요. 이 팟은 운행 완료로 정리됩니다.")}`);
+}
 export async function nudgePartyAction(partyId: string) {
   const { supabase, user } = await requireAuth();
   await supabase.rpc("complete_due_parties");
@@ -305,6 +353,30 @@ export async function nudgePartyAction(partyId: string) {
   revalidatePath(`/parties/${partyId}`);
   redirect(`/parties/${partyId}?message=${encodeURIComponent("지금 출발해요 요청을 보냈어요. 바로 모일 준비를 해주세요.")}`);
 }
+export async function addGuestbookEntryAction(formData: FormData) {
+  const message = String(formData.get("message") ?? "").trim();
+
+  if (!message) {
+    redirect(`/waiting?error=${encodeURIComponent("방명록 내용을 입력해주세요.")}`);
+  }
+
+  if (message.length > 160) {
+    redirect(`/waiting?error=${encodeURIComponent("방명록은 160자 이내로 남겨주세요.")}`);
+  }
+
+  const { supabase, user } = await requireAuth();
+  const { error } = await supabase.from("guestbook_entries").insert({
+    user_id: user.id,
+    message,
+  });
+
+  if (error) {
+    redirect(`/waiting?error=${encodeURIComponent(error.message || "방명록 저장에 실패했습니다.")}`);
+  }
+
+  revalidatePath("/waiting");
+  redirect(`/waiting?message=${encodeURIComponent("방명록이 등록되었어요.")}`);
+}
 async function runPartyMutation(
   partyId: string,
   action: "join_taxi_party" | "leave_taxi_party" | "cancel_taxi_party",
@@ -338,4 +410,6 @@ export async function leavePartyAction(partyId: string) {
 export async function cancelPartyAction(partyId: string) {
   await runPartyMutation(partyId, "cancel_taxi_party", "택시팟을 취소했습니다.");
 }
+
+
 

@@ -3,6 +3,7 @@ import { getOptionalAuthContext, requireAdmin, requireAuth, type ServerSupabaseC
 import type {
   AccountDeletionRequest,
   ActivePartySnapshot,
+  GuestbookEntry,
   MemberStatus,
   PartyDetail,
   PartyListItem,
@@ -434,6 +435,32 @@ export async function getMyPageData() {
   };
 }
 
+export async function getWaitingPageData() {
+  const { supabase, profile } = await getOptionalAuthContext();
+  const { data, error } = await supabase
+    .from("guestbook_entries")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  if (error) {
+    throw new Error("방명록을 불러오지 못했습니다.");
+  }
+
+  const entries = (data ?? []) as GuestbookEntry[];
+  const profilesMap = await fetchProfilesMap(
+    supabase,
+    [...new Set(entries.map((entry) => entry.user_id))],
+  );
+
+  return {
+    profile,
+    entries: entries.map((entry) => ({
+      ...entry,
+      nickname: profilesMap.get(entry.user_id)?.nickname ?? "익명",
+    })),
+  };
+}
 export async function getAdminPageData() {
   const { supabase } = await requireAdmin();
   const [{ data: users }, { data: parties }, { data: reports }, { data: deletionRequests }] = await Promise.all([
@@ -458,6 +485,10 @@ export async function getAdminPageData() {
     deletionRequests: (deletionRequests ?? []) as AccountDeletionRequest[],
   };
 }
+
+
+
+
 
 
 
