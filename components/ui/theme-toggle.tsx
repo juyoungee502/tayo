@@ -1,10 +1,11 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+
+import { recordThemeToggleClickAction } from "@/lib/actions/app-actions";
 
 const STORAGE_KEY = "tayo-theme";
 const CUSTOM_COLOR_KEY = "tayo-custom-brand";
-const RANDOM_THEME_STATS_KEY = "tayo-random-theme-stats";
 
 type ThemeMode = "pink" | "blue" | "custom";
 
@@ -28,7 +29,10 @@ type CustomTheme = {
   selection: string;
 };
 
-type ThemeStats = Record<string, number>;
+type RankingItem = {
+  nickname: string;
+  count: number;
+};
 
 function hexToRgb(hex: string) {
   const normalized = hex.replace("#", "");
@@ -97,19 +101,6 @@ function randomHexColor() {
   return rgbToHex(r, g, b);
 }
 
-function readStats(): ThemeStats {
-  try {
-    const raw = window.localStorage.getItem(RANDOM_THEME_STATS_KEY);
-    return raw ? (JSON.parse(raw) as ThemeStats) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeStats(stats: ThemeStats) {
-  window.localStorage.setItem(RANDOM_THEME_STATS_KEY, JSON.stringify(stats));
-}
-
 function clearCustomTheme() {
   const root = document.documentElement;
   [
@@ -167,13 +158,16 @@ function applyTheme(mode: ThemeMode, customTheme?: CustomTheme | null) {
   root.dataset.theme = mode;
 }
 
-export function ThemeToggle({ nickname }: { nickname?: string | null }) {
+export function ThemeToggle({
+  nickname,
+  initialRanking,
+}: {
+  nickname?: string | null;
+  initialRanking?: RankingItem[];
+}) {
   const [theme, setTheme] = useState<ThemeMode>("pink");
-  const [stats, setStats] = useState<ThemeStats>({});
-  const ranking = useMemo(
-    () => Object.entries(stats).sort((a, b) => b[1] - a[1]).slice(0, 3),
-    [stats],
-  );
+  const [ranking, setRanking] = useState<RankingItem[]>(initialRanking ?? []);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const savedMode = window.localStorage.getItem(STORAGE_KEY);
@@ -181,7 +175,6 @@ export function ThemeToggle({ nickname }: { nickname?: string | null }) {
     const parsedCustom = savedCustom ? (JSON.parse(savedCustom) as CustomTheme) : null;
     const nextTheme: ThemeMode = savedMode === "blue" || savedMode === "custom" ? savedMode : "pink";
     setTheme(nextTheme);
-    setStats(readStats());
     applyTheme(nextTheme, parsedCustom);
   }, []);
 
@@ -196,18 +189,22 @@ export function ThemeToggle({ nickname }: { nickname?: string | null }) {
   const handleRandomTheme = () => {
     const randomSeed = randomHexColor();
     const customTheme = buildCustomTheme(randomSeed);
-    const statKey = nickname?.trim() || "익명";
-    const nextStats = {
-      ...stats,
-      [statKey]: (stats[statKey] ?? 0) + 1,
-    };
 
     setTheme("custom");
-    setStats(nextStats);
     window.localStorage.setItem(STORAGE_KEY, "custom");
     window.localStorage.setItem(CUSTOM_COLOR_KEY, JSON.stringify(customTheme));
-    writeStats(nextStats);
     applyTheme("custom", customTheme);
+
+    if (nickname?.trim()) {
+      startTransition(async () => {
+        try {
+          const nextRanking = await recordThemeToggleClickAction();
+          setRanking(nextRanking);
+        } catch {
+          // 장난 기능이라 저장 실패 시 조용히 넘어갑니다.
+        }
+      });
+    }
   };
 
   return (
@@ -225,7 +222,7 @@ export function ThemeToggle({ nickname }: { nickname?: string | null }) {
           onClick={handleRandomTheme}
           className="rounded-full border border-brand-200 bg-white/90 px-4 py-2 text-sm font-semibold text-slateBlue transition hover:bg-brand-50"
         >
-          랜덤색상뽑기
+          {isPending ? "집계 중..." : "랜덤색상뽑기"}
         </button>
       </div>
 
@@ -233,10 +230,10 @@ export function ThemeToggle({ nickname }: { nickname?: string | null }) {
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">쓸데없는 짓하기</p>
         {ranking.length > 0 ? (
           <div className="mt-3 space-y-2 text-sm text-slate-600">
-            {ranking.map(([name, count], index) => (
-              <div key={name} className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50/70 px-3 py-2">
-                <p className="truncate font-medium text-slateBlue">{index + 1}등 {name}</p>
-                <span className="shrink-0 text-xs font-semibold text-brand-700">{count}회</span>
+            {ranking.map((item, index) => (
+              <div key={item.nickname} className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50/70 px-3 py-2">
+                <p className="truncate font-medium text-slateBlue">{index + 1}등 {item.nickname}</p>
+                <span className="shrink-0 text-xs font-semibold text-brand-700">{item.count}회</span>
               </div>
             ))}
           </div>

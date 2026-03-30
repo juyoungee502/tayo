@@ -796,3 +796,32 @@ export async function getAdminPageData() {
     deletionRequests: (deletionRequests ?? []) as AccountDeletionRequest[],
   };
 }
+
+export async function getThemeFunRankingWithClient(supabase: ServerSupabaseClient) {
+  const { data, error } = await supabase
+    .from("theme_fun_rankings")
+    .select("user_id, click_count")
+    .order("click_count", { ascending: false })
+    .limit(3);
+
+  if (error) {
+    if (error.message.includes("does not exist")) {
+      return [] as Array<{ nickname: string; count: number }>;
+    }
+
+    throw new Error("테마 장난 랭킹을 불러오지 못했습니다.");
+  }
+
+  const rows = (data ?? []) as Array<{ user_id: string; click_count: number }>;
+  const profilesMap = await fetchProfilesMap(supabase, rows.map((row) => row.user_id));
+
+  return rows.map((row) => ({
+    nickname: profilesMap.get(row.user_id)?.nickname ?? "익명",
+    count: row.click_count,
+  }));
+}
+
+export async function getThemeFunRanking() {
+  const { supabase } = await getOptionalAuthContext();
+  return getThemeFunRankingWithClient(supabase);
+}

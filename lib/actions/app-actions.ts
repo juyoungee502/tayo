@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/form-state";
 import { requireAuth } from "@/lib/queries/auth";
+import { getThemeFunRankingWithClient } from "@/lib/queries/data";
 import { feedbackSchema } from "@/lib/validators/feedback";
 import { partySchema } from "@/lib/validators/party";
 import { deletionRequestSchema, profileSchema } from "@/lib/validators/profile";
@@ -553,3 +554,38 @@ export async function leavePartyAction(partyId: string) {
 export async function cancelPartyAction(partyId: string) {
   await runPartyMutation(partyId, "cancel_taxi_party", "택시팟을 취소했습니다.");
 }
+
+export async function recordThemeToggleClickAction() {
+  const { supabase, user } = await requireAuth();
+  const { data: existing, error: existingError } = await supabase
+    .from("theme_fun_rankings")
+    .select("click_count")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existingError && !existingError.message.includes("does not exist")) {
+    throw new Error(existingError.message || "랭킹 저장에 실패했습니다.");
+  }
+
+  const nextCount = (existing?.click_count ?? 0) + 1;
+  const { error } = await supabase.from("theme_fun_rankings").upsert(
+    {
+      user_id: user.id,
+      click_count: nextCount,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) {
+    throw new Error(error.message || "랭킹 저장에 실패했습니다.");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/home");
+  revalidatePath("/waiting");
+
+  return getThemeFunRankingWithClient(supabase);
+}
+
+

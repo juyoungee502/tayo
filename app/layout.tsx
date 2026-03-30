@@ -5,7 +5,11 @@ import { Noto_Sans_KR, Space_Grotesk } from "next/font/google";
 import { Header } from "@/components/layout/header";
 import { buttonStyles } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { getActivePartySnapshotForCurrentUser, getPendingFeedbackPartiesForCurrentUser } from "@/lib/queries/data";
+import {
+  getActivePartySnapshotForCurrentUser,
+  getPendingFeedbackPartiesForCurrentUser,
+  getThemeFunRanking,
+} from "@/lib/queries/data";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
 import { estimateTaxiShare, formatRelativeStatus, isUrgentParty } from "@/lib/utils";
 
@@ -33,6 +37,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let pendingFeedbackCount = 0;
   let pendingFeedbackHref = "/home";
   let activePartySnapshot = null;
+  let themeFunRanking: Array<{ nickname: string; count: number }> = [];
+
+  try {
+    themeFunRanking = await getThemeFunRanking();
+  } catch {
+    themeFunRanking = [];
+  }
 
   if (authContext.user) {
     try {
@@ -79,7 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           ) : null}
           <main className={`mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8 ${hasActivePartyBar ? "pb-28 sm:pb-32" : ""}`}>
             <div className="mb-4 flex justify-end">
-              <ThemeToggle nickname={authContext.profile?.nickname ?? null} />
+              <ThemeToggle nickname={authContext.profile?.nickname ?? null} initialRanking={themeFunRanking} />
             </div>
             {children}
           </main>
@@ -121,5 +132,3 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
-
-
