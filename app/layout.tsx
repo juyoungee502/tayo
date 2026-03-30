@@ -87,6 +87,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-500 sm:px-6 sm:text-base">
               <p className="font-[var(--font-display)] font-semibold text-slateBlue">All Rights Reserved. TAYO x OIKOS!!!!</p>
               <p>CEO: 유주영 CTO: 박준서</p>
+              <p>JH COMPANY</p>
+              <p>contact : submel@naver.com</p>
               <p className="text-sm text-slate-500">We love because he first loved us. 1 John 4:19</p>
             </div>
           </footer>
