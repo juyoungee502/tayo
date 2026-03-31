@@ -584,8 +584,12 @@ export async function recordThemeToggleClickAction() {
   revalidatePath("/");
   revalidatePath("/home");
   revalidatePath("/waiting");
+  revalidatePath("/parties");
+  revalidatePath("/parties/[id]", "page");
 
   return getThemeFunRankingWithClient(supabase);
 }
+
+
 
 

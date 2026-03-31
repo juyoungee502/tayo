@@ -1,13 +1,14 @@
 ﻿import Link from "next/link";
 
 import { joinPartyAction } from "@/lib/actions/app-actions";
+import { DEFAULT_DESTINATION } from "@/lib/constants";
+import { getPartyList } from "@/lib/queries/data";
+import { estimateTaxiShare, formatDate, formatDateTime, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
 import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
-import { getPartyList } from "@/lib/queries/data";
-import { DEFAULT_DESTINATION } from "@/lib/constants";
-import { estimateTaxiShare, formatDate, formatDateTime, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
+import { ThemeRankBadge } from "@/components/ui/theme-rank-badge";
 
 function pickParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -69,6 +70,10 @@ function PartyListSection({
               </div>
 
               <div className="space-y-1 text-sm text-slate-600">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>생성자: {party.creatorNickname}</span>
+                  <ThemeRankBadge rank={party.creatorThemeFunRank} />
+                </div>
                 {party.sharedRideCount > 0 ? (
                   <p className="text-xs text-brand-700">
                     {formatDate(party.lastRideAtWithCreator ?? new Date().toISOString())}에 {party.creatorNickname}님과 같이 탑승했고, 지금까지 총 {party.sharedRideCount}번 같이 탔어요.

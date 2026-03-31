@@ -1,8 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useTransition } from "react";
 
+import { ThemeRankBadge } from "@/components/ui/theme-rank-badge";
 import { recordThemeToggleClickAction } from "@/lib/actions/app-actions";
+import type { ThemeFunRankInfo } from "@/types/database";
 
 const STORAGE_KEY = "tayo-theme";
 const CUSTOM_COLOR_KEY = "tayo-custom-brand";
@@ -27,11 +29,6 @@ type CustomTheme = {
   mesh2: string;
   mesh3: string;
   selection: string;
-};
-
-type RankingItem = {
-  nickname: string;
-  count: number;
 };
 
 function hexToRgb(hex: string) {
@@ -163,10 +160,10 @@ export function ThemeToggle({
   initialRanking,
 }: {
   nickname?: string | null;
-  initialRanking?: RankingItem[];
+  initialRanking?: ThemeFunRankInfo[];
 }) {
   const [theme, setTheme] = useState<ThemeMode>("pink");
-  const [ranking, setRanking] = useState<RankingItem[]>(initialRanking ?? []);
+  const [ranking, setRanking] = useState<ThemeFunRankInfo[]>(initialRanking ?? []);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -229,14 +226,22 @@ export function ThemeToggle({
       <div className="w-full max-w-xs rounded-3xl border border-brand-200 bg-white/90 p-3 text-left shadow-lg shadow-brand-200/30 backdrop-blur-xl">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">쓸데없는 짓하기</p>
         {ranking.length > 0 ? (
-          <div className="mt-3 space-y-2 text-sm text-slate-600">
-            {ranking.map((item, index) => (
-              <div key={item.nickname} className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50/70 px-3 py-2">
-                <p className="truncate font-medium text-slateBlue">{index + 1}등 {item.nickname}</p>
-                <span className="shrink-0 text-xs font-semibold text-brand-700">{item.count}회</span>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="mt-3 space-y-2 text-sm text-slate-600">
+              {ranking.map((item) => (
+                <div key={`${item.rank}-${item.nickname}`} className="flex items-center justify-between gap-3 rounded-2xl bg-brand-50/70 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <ThemeRankBadge rank={item.rank} className="shrink-0" />
+                      <p className="truncate font-medium text-slateBlue">{item.nickname}</p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs font-semibold text-brand-700">{item.count}회</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-500">{ranking[0]?.nickname}님! 많이 심심하신가봐요!</p>
+          </>
         ) : (
           <p className="mt-3 text-sm text-slate-500">아직 아무도 쓸데없는 짓을 하지 않았어요.</p>
         )}
@@ -244,4 +249,3 @@ export function ThemeToggle({
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-﻿import { FEEDBACK_DELAY_HOURS } from "@/lib/constants";
+import { FEEDBACK_DELAY_HOURS } from "@/lib/constants";
 import { getOptionalAuthContext, requireAdmin, requireAuth, type ServerSupabaseClient } from "@/lib/queries/auth";
 import type {
   AccountDeletionRequest,
@@ -12,6 +12,7 @@ import type {
   PartyMemberNote,
   Profile,
   Report,
+  ThemeFunRankInfo,
   TaxiParty,
 } from "@/types/database";
 
@@ -82,7 +83,7 @@ async function fetchProfilesMap(supabase: ServerSupabaseClient, ids: string[]) {
   const { data, error } = await supabase.from("profiles").select("*").in("id", ids);
 
   if (error) {
-    throw new Error("프로필 목록을 불러오지 못했습니다.");
+    throw new Error("?꾨줈??紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   return new Map((data ?? []).map((profile) => {
@@ -99,7 +100,7 @@ async function fetchPartyMembers(supabase: ServerSupabaseClient, partyIds: strin
   const { data, error } = await supabase.from("party_members").select("*").in("party_id", partyIds);
 
   if (error) {
-    throw new Error("참여자 정보를 불러오지 못했습니다.");
+    throw new Error("李몄뿬???뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   return (data ?? []) as PartyMember[];
@@ -113,7 +114,7 @@ async function fetchPartyMemberNotes(supabase: ServerSupabaseClient, partyId: st
       return new Map<string, string>();
     }
 
-    throw new Error("파티원 메모를 불러오지 못했습니다.");
+    throw new Error("?뚰떚??硫붾え瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   return new Map((data as PartyMemberNote[]).map((note) => [note.user_id, note.note]));
@@ -141,7 +142,7 @@ async function fetchGuestbookLikeSummary(
       };
     }
 
-    throw new Error("방명록 좋아요를 불러오지 못했습니다.");
+    throw new Error("諛⑸챸濡?醫뗭븘?붾? 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const likeRows = (data ?? []) as Pick<GuestbookEntryLike, "entry_id" | "user_id">[];
@@ -174,7 +175,7 @@ async function fetchActivePartyIdsForUser(
     .eq("status", "joined");
 
   if (membershipError) {
-    throw new Error("현재 참여 중인 활성 택시팟을 확인하지 못했습니다.");
+    throw new Error("?꾩옱 李몄뿬 以묒씤 ?쒖꽦 ?앹떆?잛쓣 ?뺤씤?섏? 紐삵뻽?듬땲??");
   }
 
   const candidatePartyIds = (memberships ?? [])
@@ -194,7 +195,7 @@ async function fetchActivePartyIdsForUser(
     .order("scheduled_at", { ascending: true });
 
   if (activePartyError) {
-    throw new Error("활성 택시팟 상태를 불러오지 못했습니다.");
+    throw new Error("?쒖꽦 ?앹떆???곹깭瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   return (activeParties ?? []).map((party) => party.id);
@@ -215,7 +216,7 @@ async function getPendingFeedbackPartiesForUser(supabase: ServerSupabaseClient, 
     .in("status", FEEDBACK_ELIGIBLE_MEMBER_STATUSES);
 
   if (membershipError) {
-    throw new Error("피드백 대상 파티를 확인하지 못했습니다.");
+    throw new Error("?쇰뱶諛?????뚰떚瑜??뺤씤?섏? 紐삵뻽?듬땲??");
   }
 
   const partyIds = (memberships as PartyMember[]).map((membership) => membership.party_id);
@@ -233,7 +234,7 @@ async function getPendingFeedbackPartiesForUser(supabase: ServerSupabaseClient, 
     .order("scheduled_at", { ascending: false });
 
   if (partyError) {
-    throw new Error("피드백 대상 파티를 불러오지 못했습니다.");
+    throw new Error("?쇰뱶諛?????뚰떚瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const { data: reviews } = await supabase
@@ -267,7 +268,7 @@ async function fetchSharedRideStatsWithCreators(
     .eq("status", "completed");
 
   if (membershipError) {
-    throw new Error("이전 동승 기록을 불러오지 못했습니다.");
+    throw new Error("?댁쟾 ?숈듅 湲곕줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const completedPartyIds = (memberships ?? []).map((membership) => membership.party_id).filter(Boolean);
@@ -285,7 +286,7 @@ async function fetchSharedRideStatsWithCreators(
     .order("scheduled_at", { ascending: false });
 
   if (partyError) {
-    throw new Error("이전 동승 기록을 불러오지 못했습니다.");
+    throw new Error("?댁쟾 ?숈듅 湲곕줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const statsMap = new Map<string, { lastRideAt: string; count: number }>();
@@ -327,7 +328,7 @@ async function fetchCreatorReviewSummary(
     .neq("status", "cancelled");
 
   if (partyError) {
-    throw new Error("생성자 후기 요약을 불러오지 못했습니다.");
+    throw new Error("?앹꽦???꾧린 ?붿빟??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const partyRows = (creatorParties ?? []) as Array<Pick<TaxiParty, "id" | "creator_id">>;
@@ -343,7 +344,7 @@ async function fetchCreatorReviewSummary(
     .in("party_id", partyIds);
 
   if (reviewError) {
-    throw new Error("생성자 후기 요약을 불러오지 못했습니다.");
+    throw new Error("?앹꽦???꾧린 ?붿빟??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const creatorByPartyId = new Map(partyRows.map((party) => [party.id, party.creator_id]));
@@ -391,7 +392,7 @@ async function fetchFavoriteDepartures(supabase: ServerSupabaseClient, userId: s
     .in("status", ["joined", "completed"]);
 
   if (membershipError) {
-    throw new Error("자주 쓰는 출발지를 불러오지 못했습니다.");
+    throw new Error("?먯＜ ?곕뒗 異쒕컻吏瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const partyIds = (memberships ?? []).map((membership) => membership.party_id).filter(Boolean);
@@ -407,7 +408,7 @@ async function fetchFavoriteDepartures(supabase: ServerSupabaseClient, userId: s
     .order("scheduled_at", { ascending: false });
 
   if (partyError) {
-    throw new Error("자주 쓰는 출발지를 불러오지 못했습니다.");
+    throw new Error("?먯＜ ?곕뒗 異쒕컻吏瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const counter = new Map<string, number>();
@@ -443,7 +444,7 @@ async function fetchTodayStats(supabase: ServerSupabaseClient) {
     .lt("scheduled_at", end.toISOString());
 
   if (partyError) {
-    throw new Error("오늘 탑승 통계를 불러오지 못했습니다.");
+    throw new Error("?ㅻ뒛 ?묒듅 ?듦퀎瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const partyIds = (parties ?? []).map((party) => party.id);
@@ -462,7 +463,7 @@ async function fetchTodayStats(supabase: ServerSupabaseClient) {
     .in("status", ["joined", "completed"]);
 
   if (memberError) {
-    throw new Error("오늘 탑승 통계를 불러오지 못했습니다.");
+    throw new Error("?ㅻ뒛 ?묒듅 ?듦퀎瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   return {
@@ -480,13 +481,14 @@ async function decoratePartyList(
   const partyIds = normalizedParties.map((party) => party.id);
   const members = await fetchPartyMembers(supabase, partyIds);
   const creatorIds = [...new Set(normalizedParties.map((party) => party.creator_id))];
-  const [profilesMap, activePartyId, sharedRideStatsMap, creatorReviewSummaryMap] = await Promise.all([
+  const [profilesMap, activePartyId, sharedRideStatsMap, creatorReviewSummaryMap, themeFunRankMap] = await Promise.all([
     fetchProfilesMap(supabase, creatorIds),
     currentUserId ? fetchActivePartyId(supabase, currentUserId) : Promise.resolve(null),
     currentUserId
       ? fetchSharedRideStatsWithCreators(supabase, currentUserId, creatorIds)
       : Promise.resolve(new Map<string, { lastRideAt: string; count: number }>()),
     fetchCreatorReviewSummary(supabase, creatorIds),
+    fetchThemeFunRankMap(supabase),
   ]);
   const membersByPartyId = new Map<string, PartyMember[]>();
 
@@ -513,11 +515,13 @@ async function decoratePartyList(
 
     return {
       ...party,
-      creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "익명",
+      creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "?듬챸",
       lastRideAtWithCreator: rideStats?.lastRideAt ?? null,
       sharedRideCount: rideStats?.count ?? 0,
       creatorAverageRating: reviewSummary.average,
       creatorReviewCount: reviewSummary.count,
+      creatorThemeFunRank: themeFunRankMap.get(party.creator_id)?.rank ?? null,
+      creatorThemeFunCount: themeFunRankMap.get(party.creator_id)?.count ?? 0,
       joinedCount,
       seatsLeft,
       myMembershipStatus: (myMembership?.status as MemberStatus | undefined) ?? null,
@@ -551,7 +555,7 @@ export async function getActivePartySnapshotForCurrentUser(): Promise<ActivePart
     .maybeSingle();
 
   if (error) {
-    throw new Error("현재 참여 중인 택시팟을 불러오지 못했습니다.");
+    throw new Error("?꾩옱 李몄뿬 以묒씤 ?앹떆?잛쓣 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   if (!partyData) {
@@ -606,7 +610,7 @@ export async function getPartyList(filters: { q?: string; date?: string; availab
   const { data, error } = await query;
 
   if (error) {
-    throw new Error("택시팟 목록을 불러오지 못했습니다.");
+    throw new Error("?앹떆??紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const items = sortPartyList(await decoratePartyList(supabase, (data ?? []) as TaxiParty[], user?.id ?? null));
@@ -627,7 +631,7 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     .maybeSingle();
 
   if (error) {
-    throw new Error("택시팟 정보를 불러오지 못했습니다.");
+    throw new Error("?앹떆???뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   if (!partyData) {
@@ -635,7 +639,7 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
   }
 
   const party = normalizeParty(partyData as TaxiParty);
-  const [members, memberNotesMap, reviewResult, activePartyId, creatorReviewSummaryMap] = await Promise.all([
+  const [members, memberNotesMap, reviewResult, activePartyId, creatorReviewSummaryMap, themeFunRankMap] = await Promise.all([
     fetchPartyMembers(supabase, [partyId]),
     fetchPartyMemberNotes(supabase, partyId),
     user
@@ -643,6 +647,7 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
       : Promise.resolve({ data: null }),
     user ? fetchActivePartyId(supabase, user.id, partyId) : Promise.resolve(null),
     fetchCreatorReviewSummary(supabase, [party.creator_id]),
+    fetchThemeFunRankMap(supabase),
   ]);
   const participantProfiles = await fetchProfilesMap(
     supabase,
@@ -663,12 +668,14 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     members: members.map((member) => ({
       membership: member,
       note: memberNotesMap.get(member.user_id) ?? null,
+      themeFunRank: themeFunRankMap.get(member.user_id)?.rank ?? null,
+      themeFunCount: themeFunRankMap.get(member.user_id)?.count ?? 0,
       profile:
         participantProfiles.get(member.user_id) ??
         normalizeProfile({
           id: member.user_id,
           email: "",
-          nickname: "알 수 없음",
+          nickname: "?????놁쓬",
           school: "",
           role: "user",
           created_at: new Date().toISOString(),
@@ -677,6 +684,8 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     })),
     creatorAverageRating: creatorReviewSummary.average,
     creatorReviewCount: creatorReviewSummary.count,
+    creatorThemeFunRank: themeFunRankMap.get(party.creator_id)?.rank ?? null,
+    creatorThemeFunCount: themeFunRankMap.get(party.creator_id)?.count ?? 0,
     joinedCount,
     currentUserMembership,
     hasSubmittedFeedback: Boolean(reviewData),
@@ -725,7 +734,7 @@ export async function getMyPageData() {
   ]);
 
   if (error) {
-    throw new Error("내 이용 이력을 불러오지 못했습니다.");
+    throw new Error("???댁슜 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const partyIds = ((memberships ?? []) as PartyMember[]).map((membership) => membership.party_id);
@@ -756,11 +765,11 @@ export async function getWaitingPageData() {
     .limit(30);
 
   if (error) {
-    throw new Error("방명록을 불러오지 못했습니다.");
+    throw new Error("諛⑸챸濡앹쓣 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
   const entries = (data ?? []) as GuestbookEntry[];
-  const [profilesMap, likeSummary] = await Promise.all([
+  const [profilesMap, likeSummary, themeFunRankMap] = await Promise.all([
     fetchProfilesMap(
       supabase,
       [...new Set(entries.map((entry) => entry.user_id))],
@@ -770,6 +779,7 @@ export async function getWaitingPageData() {
       entries.map((entry) => entry.id),
       user?.id ?? null,
     ),
+    fetchThemeFunRankMap(supabase),
   ]);
   const { likeCountMap, likedEntryIds } = likeSummary;
 
@@ -777,8 +787,10 @@ export async function getWaitingPageData() {
     profile: profile ? normalizeProfile(profile as Profile) : null,
     entries: entries.map((entry) => ({
       ...entry,
-      nickname: profilesMap.get(entry.user_id)?.nickname ?? "익명",
+      nickname: profilesMap.get(entry.user_id)?.nickname ?? "?듬챸",
       profileMessage: profilesMap.get(entry.user_id)?.profile_message ?? null,
+      themeFunRank: themeFunRankMap.get(entry.user_id)?.rank ?? null,
+      themeFunCount: themeFunRankMap.get(entry.user_id)?.count ?? 0,
       likeCount: likeCountMap.get(entry.id) ?? 0,
       likedByMe: likedEntryIds.has(entry.id),
     })),
@@ -810,27 +822,57 @@ export async function getAdminPageData() {
   };
 }
 
-export async function getThemeFunRankingWithClient(supabase: ServerSupabaseClient) {
+type ThemeFunRankingRow = {
+  user_id: string;
+  click_count: number;
+};
+
+type ThemeFunRankingItem = ThemeFunRankInfo & {
+  userId: string;
+};
+
+async function fetchThemeFunRankingRows(supabase: ServerSupabaseClient) {
   const { data, error } = await supabase
     .from("theme_fun_rankings")
     .select("user_id, click_count")
     .order("click_count", { ascending: false })
+    .order("updated_at", { ascending: true })
     .limit(3);
 
   if (error) {
     if (error.message.includes("does not exist")) {
-      return [] as Array<{ nickname: string; count: number }>;
+      return [] as ThemeFunRankingRow[];
     }
 
-    throw new Error("테마 장난 랭킹을 불러오지 못했습니다.");
+    throw new Error("?뚮쭏 ?λ궃 ??궧??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
   }
 
-  const rows = (data ?? []) as Array<{ user_id: string; click_count: number }>;
+  return (data ?? []) as ThemeFunRankingRow[];
+}
+
+async function fetchThemeFunRankingItems(supabase: ServerSupabaseClient): Promise<ThemeFunRankingItem[]> {
+  const rows = await fetchThemeFunRankingRows(supabase);
   const profilesMap = await fetchProfilesMap(supabase, rows.map((row) => row.user_id));
 
-  return rows.map((row) => ({
-    nickname: profilesMap.get(row.user_id)?.nickname ?? "익명",
+  return rows.map((row, index) => ({
+    userId: row.user_id,
+    nickname: profilesMap.get(row.user_id)?.nickname ?? "?듬챸",
     count: row.click_count,
+    rank: index + 1,
+  }));
+}
+
+async function fetchThemeFunRankMap(supabase: ServerSupabaseClient) {
+  const items = await fetchThemeFunRankingItems(supabase);
+  return new Map(items.map((item) => [item.userId, { rank: item.rank, count: item.count, nickname: item.nickname }]));
+}
+
+export async function getThemeFunRankingWithClient(supabase: ServerSupabaseClient): Promise<ThemeFunRankInfo[]> {
+  const items = await fetchThemeFunRankingItems(supabase);
+  return items.map((item) => ({
+    rank: item.rank,
+    nickname: item.nickname,
+    count: item.count,
   }));
 }
 
@@ -838,6 +880,9 @@ export async function getThemeFunRanking() {
   const { supabase } = await getOptionalAuthContext();
   return getThemeFunRankingWithClient(supabase);
 }
+
+
+
 
 
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/queries/data";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
 import { estimateTaxiShare, formatRelativeStatus, isUrgentParty } from "@/lib/utils";
+import type { ThemeFunRankInfo } from "@/types/database";
 
 import "./globals.css";
 
@@ -37,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let pendingFeedbackCount = 0;
   let pendingFeedbackHref = "/home";
   let activePartySnapshot = null;
-  let themeFunRanking: Array<{ nickname: string; count: number }> = [];
+  let themeFunRanking: ThemeFunRankInfo[] = [];
 
   const themeRankingPromise = getThemeFunRanking();
 
@@ -141,4 +142,3 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     </html>
   );
 }
-

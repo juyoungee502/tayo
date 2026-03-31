@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { StatusPill } from "@/components/ui/status-pill";
+import { ThemeRankBadge } from "@/components/ui/theme-rank-badge";
 import { buttonStyles } from "@/components/ui/button";
 import { SharePartyButton } from "@/components/ui/share-party-button";
 import {
@@ -84,7 +85,10 @@ export default async function PartyDetailPage({
               <p>현재 인원 / 최대 인원: {party.joinedCount}/{party.capacity}명</p>
               <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
               <p>남은 자리 수: {seatsLeft}석</p>
-              <p>생성자: {party.creator?.nickname ?? "알 수 없음"}</p>
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                <p>생성자: {party.creator?.nickname ?? "알 수 없음"}</p>
+                <ThemeRankBadge rank={party.creatorThemeFunRank} />
+              </div>
               {party.creatorReviewCount > 0 && party.creatorAverageRating ? <p>후기 평균: {party.creatorAverageRating} / 5.0 ({party.creatorReviewCount}개)</p> : null}
               {party.departure_detail ? <p className="sm:col-span-2">상세 위치: {party.departure_detail}</p> : null}
               {cleanNote ? <p className="sm:col-span-2">계좌/메모: {cleanNote}</p> : null}
@@ -170,7 +174,10 @@ export default async function PartyDetailPage({
               <div key={participant.profile.id} className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="font-semibold text-slateBlue">{participant.profile.nickname}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slateBlue">{participant.profile.nickname}</p>
+                      <ThemeRankBadge rank={participant.themeFunRank} />
+                    </div>
                     <p className="text-xs text-slate-500">{participant.profile.school}</p>
                     {participant.profile.department || participant.profile.student_number ? (
                       <p className="text-xs text-slate-400">{[participant.profile.department, participant.profile.student_number].filter(Boolean).join(" · ")}</p>
