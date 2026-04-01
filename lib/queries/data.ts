@@ -14,6 +14,7 @@ import type {
   Report,
   ThemeFunRankInfo,
   TaxiParty,
+  UserAccessLog,
 } from "@/types/database";
 
 const ACTIVE_PARTY_STATUSES = ["recruiting", "full"] as const;
@@ -83,7 +84,7 @@ async function fetchProfilesMap(supabase: ServerSupabaseClient, ids: string[]) {
   const { data, error } = await supabase.from("profiles").select("*").in("id", ids);
 
   if (error) {
-    throw new Error("?꾨줈??紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("?꾨줈??紐⑸�???�덈???? 紐삵�??�땲??");
   }
 
   return new Map((data ?? []).map((profile) => {
@@ -100,7 +101,7 @@ async function fetchPartyMembers(supabase: ServerSupabaseClient, partyIds: strin
   const { data, error } = await supabase.from("party_members").select("*").in("party_id", partyIds);
 
   if (error) {
-    throw new Error("李몄뿬???뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("李몄�???뺣낫???�덈???? 紐삵�??�땲??");
   }
 
   return (data ?? []) as PartyMember[];
@@ -114,7 +115,7 @@ async function fetchPartyMemberNotes(supabase: ServerSupabaseClient, partyId: st
       return new Map<string, string>();
     }
 
-    throw new Error("?뚰떚??硫붾え瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�떚??硫붾?�瑜??�덈???? 紐삵�??�땲??");
   }
 
   return new Map((data as PartyMemberNote[]).map((note) => [note.user_id, note.note]));
@@ -142,7 +143,7 @@ async function fetchGuestbookLikeSummary(
       };
     }
 
-    throw new Error("諛⑸챸濡?醫뗭븘?붾? 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("諛⑸챸濡??�뗭�?�? ?�덈???? 紐삵�??�땲??");
   }
 
   const likeRows = (data ?? []) as Pick<GuestbookEntryLike, "entry_id" | "user_id">[];
@@ -175,7 +176,7 @@ async function fetchActivePartyIdsForUser(
     .eq("status", "joined");
 
   if (membershipError) {
-    throw new Error("?꾩옱 李몄뿬 以묒씤 ?쒖꽦 ?앹떆?잛쓣 ?뺤씤?섏? 紐삵뻽?듬땲??");
+    throw new Error("?꾩옱 李몄�?以묒????�꽦 ??�떆??�쓣 ?뺤씤??? 紐삵�??�땲??");
   }
 
   const candidatePartyIds = (memberships ?? [])
@@ -195,7 +196,7 @@ async function fetchActivePartyIdsForUser(
     .order("scheduled_at", { ascending: true });
 
   if (activePartyError) {
-    throw new Error("?쒖꽦 ?앹떆???곹깭瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�꽦 ??�떆???곹깭???�덈???? 紐삵�??�땲??");
   }
 
   return (activeParties ?? []).map((party) => party.id);
@@ -216,7 +217,7 @@ async function getPendingFeedbackPartiesForUser(supabase: ServerSupabaseClient, 
     .in("status", FEEDBACK_ELIGIBLE_MEMBER_STATUSES);
 
   if (membershipError) {
-    throw new Error("?쇰뱶諛?????뚰떚瑜??뺤씤?섏? 紐삵뻽?듬땲??");
+    throw new Error("??�뱶�???????�떚???뺤씤??? 紐삵�??�땲??");
   }
 
   const partyIds = (memberships as PartyMember[]).map((membership) => membership.party_id);
@@ -234,7 +235,7 @@ async function getPendingFeedbackPartiesForUser(supabase: ServerSupabaseClient, 
     .order("scheduled_at", { ascending: false });
 
   if (partyError) {
-    throw new Error("?쇰뱶諛?????뚰떚瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�뱶�???????�떚???�덈???? 紐삵�??�땲??");
   }
 
   const { data: reviews } = await supabase
@@ -268,7 +269,7 @@ async function fetchSharedRideStatsWithCreators(
     .eq("status", "completed");
 
   if (membershipError) {
-    throw new Error("?댁쟾 ?숈듅 湲곕줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�쟾 ??�듅 湲곕�???�덈???? 紐삵�??�땲??");
   }
 
   const completedPartyIds = (memberships ?? []).map((membership) => membership.party_id).filter(Boolean);
@@ -286,7 +287,7 @@ async function fetchSharedRideStatsWithCreators(
     .order("scheduled_at", { ascending: false });
 
   if (partyError) {
-    throw new Error("?댁쟾 ?숈듅 湲곕줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�쟾 ??�듅 湲곕�???�덈???? 紐삵�??�땲??");
   }
 
   const statsMap = new Map<string, { lastRideAt: string; count: number }>();
@@ -328,7 +329,7 @@ async function fetchCreatorReviewSummary(
     .neq("status", "cancelled");
 
   if (partyError) {
-    throw new Error("?앹꽦???꾧린 ?붿빟??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�꽦???꾧린 ?붿빟???�덈???? 紐삵�??�땲??");
   }
 
   const partyRows = (creatorParties ?? []) as Array<Pick<TaxiParty, "id" | "creator_id">>;
@@ -344,7 +345,7 @@ async function fetchCreatorReviewSummary(
     .in("party_id", partyIds);
 
   if (reviewError) {
-    throw new Error("?앹꽦???꾧린 ?붿빟??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�꽦???꾧린 ?붿빟???�덈???? 紐삵�??�땲??");
   }
 
   const creatorByPartyId = new Map(partyRows.map((party) => [party.id, party.creator_id]));
@@ -392,7 +393,7 @@ async function fetchFavoriteDepartures(supabase: ServerSupabaseClient, userId: s
     .in("status", ["joined", "completed"]);
 
   if (membershipError) {
-    throw new Error("?먯＜ ?곕뒗 異쒕컻吏瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("?�?�� ?곕뒗 ?�쒕컻吏????�덈???? 紐삵�??�땲??");
   }
 
   const partyIds = (memberships ?? []).map((membership) => membership.party_id).filter(Boolean);
@@ -408,7 +409,7 @@ async function fetchFavoriteDepartures(supabase: ServerSupabaseClient, userId: s
     .order("scheduled_at", { ascending: false });
 
   if (partyError) {
-    throw new Error("?먯＜ ?곕뒗 異쒕컻吏瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("?�?�� ?곕뒗 ?�쒕컻吏????�덈???? 紐삵�??�땲??");
   }
 
   const counter = new Map<string, number>();
@@ -444,7 +445,7 @@ async function fetchTodayStats(supabase: ServerSupabaseClient) {
     .lt("scheduled_at", end.toISOString());
 
   if (partyError) {
-    throw new Error("?ㅻ뒛 ?묒듅 ?듦퀎瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�뒛 ?묒듅 ???��瑜??�덈???? 紐삵�??�땲??");
   }
 
   const partyIds = (parties ?? []).map((party) => party.id);
@@ -463,7 +464,7 @@ async function fetchTodayStats(supabase: ServerSupabaseClient) {
     .in("status", ["joined", "completed"]);
 
   if (memberError) {
-    throw new Error("?ㅻ뒛 ?묒듅 ?듦퀎瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�뒛 ?묒듅 ???��瑜??�덈???? 紐삵�??�땲??");
   }
 
   return {
@@ -515,7 +516,7 @@ async function decoratePartyList(
 
     return {
       ...party,
-      creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "?듬챸",
+      creatorNickname: profilesMap.get(party.creator_id)?.nickname ?? "??�챸",
       lastRideAtWithCreator: rideStats?.lastRideAt ?? null,
       sharedRideCount: rideStats?.count ?? 0,
       creatorAverageRating: reviewSummary.average,
@@ -555,7 +556,7 @@ export async function getActivePartySnapshotForCurrentUser(): Promise<ActivePart
     .maybeSingle();
 
   if (error) {
-    throw new Error("?꾩옱 李몄뿬 以묒씤 ?앹떆?잛쓣 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("?꾩옱 李몄�?以묒????�떆??�쓣 ?�덈???? 紐삵�??�땲??");
   }
 
   if (!partyData) {
@@ -610,7 +611,7 @@ export async function getPartyList(filters: { q?: string; date?: string; availab
   const { data, error } = await query;
 
   if (error) {
-    throw new Error("?앹떆??紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�떆??紐⑸�???�덈???? 紐삵�??�땲??");
   }
 
   const items = sortPartyList(await decoratePartyList(supabase, (data ?? []) as TaxiParty[], user?.id ?? null));
@@ -631,7 +632,7 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
     .maybeSingle();
 
   if (error) {
-    throw new Error("?앹떆???뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("??�떆???뺣낫???�덈???? 紐삵�??�땲??");
   }
 
   if (!partyData) {
@@ -675,7 +676,7 @@ export async function getPartyDetail(partyId: string): Promise<PartyDetail | nul
         normalizeProfile({
           id: member.user_id,
           email: "",
-          nickname: "?????놁쓬",
+          nickname: "??????�쓬",
           school: "",
           role: "user",
           created_at: new Date().toISOString(),
@@ -734,7 +735,7 @@ export async function getMyPageData() {
   ]);
 
   if (error) {
-    throw new Error("???댁슜 ?대젰??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("????�슜 ??�????�덈???? 紐삵�??�땲??");
   }
 
   const partyIds = ((memberships ?? []) as PartyMember[]).map((membership) => membership.party_id);
@@ -765,7 +766,7 @@ export async function getWaitingPageData() {
     .limit(30);
 
   if (error) {
-    throw new Error("諛⑸챸濡앹쓣 遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("諛⑸챸濡?�쓣 ?�덈???? 紐삵�??�땲??");
   }
 
   const entries = (data ?? []) as GuestbookEntry[];
@@ -787,7 +788,7 @@ export async function getWaitingPageData() {
     profile: profile ? normalizeProfile(profile as Profile) : null,
     entries: entries.map((entry) => ({
       ...entry,
-      nickname: profilesMap.get(entry.user_id)?.nickname ?? "?듬챸",
+      nickname: profilesMap.get(entry.user_id)?.nickname ?? "??�챸",
       profileMessage: profilesMap.get(entry.user_id)?.profile_message ?? null,
       themeFunRank: themeFunRankMap.get(entry.user_id)?.rank ?? null,
       themeFunCount: themeFunRankMap.get(entry.user_id)?.count ?? 0,
@@ -799,15 +800,22 @@ export async function getWaitingPageData() {
 
 export async function getAdminPageData() {
   const { supabase } = await requireAdmin();
-  const [{ data: users }, { data: parties }, { data: reports }, { data: deletionRequests }] = await Promise.all([
+  const [{ data: users }, { data: parties }, { data: reports }, { data: deletionRequests }, accessLogsResult] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at", { ascending: false }),
     supabase.from("taxi_parties").select("*").order("scheduled_at", { ascending: false }),
     supabase.from("reports").select("*").order("created_at", { ascending: false }),
     supabase.from("account_deletion_requests").select("*").order("created_at", { ascending: false }),
+    supabase.from("user_access_logs").select("*").order("created_at", { ascending: false }).limit(50),
   ]);
 
   const reportRows = (reports ?? []) as Report[];
-  const relatedProfileIds = [...new Set(reportRows.flatMap((report) => [report.reporter_id, report.reported_user_id]))];
+  const accessLogs = accessLogsResult.error && accessLogsResult.error.message.includes("does not exist")
+    ? []
+    : ((accessLogsResult.data ?? []) as UserAccessLog[]);
+  const relatedProfileIds = [...new Set([
+    ...reportRows.flatMap((report) => [report.reporter_id, report.reported_user_id]),
+    ...accessLogs.map((log) => log.user_id),
+  ])];
   const profilesMap = await fetchProfilesMap(supabase, relatedProfileIds);
 
   return {
@@ -819,6 +827,11 @@ export async function getAdminPageData() {
       reportedUserName: profilesMap.get(report.reported_user_id)?.nickname ?? report.reported_user_id,
     })),
     deletionRequests: (deletionRequests ?? []) as AccountDeletionRequest[],
+    accessLogs: accessLogs.map((log) => ({
+      ...log,
+      nickname: profilesMap.get(log.user_id)?.nickname ?? "�͸�",
+      email: profilesMap.get(log.user_id)?.email ?? null,
+    })),
   };
 }
 
@@ -844,7 +857,7 @@ async function fetchThemeFunRankingRows(supabase: ServerSupabaseClient) {
       return [] as ThemeFunRankingRow[];
     }
 
-    throw new Error("?뚮쭏 ?λ궃 ??궧??遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+    throw new Error("???�� ?λ�???�???�덈???? 紐삵�??�땲??");
   }
 
   return (data ?? []) as ThemeFunRankingRow[];
@@ -856,7 +869,7 @@ async function fetchThemeFunRankingItems(supabase: ServerSupabaseClient): Promis
 
   return rows.map((row, index) => ({
     userId: row.user_id,
-    nickname: profilesMap.get(row.user_id)?.nickname ?? "?듬챸",
+    nickname: profilesMap.get(row.user_id)?.nickname ?? "??�챸",
     count: row.click_count,
     rank: index + 1,
   }));
@@ -880,6 +893,9 @@ export async function getThemeFunRanking() {
   const { supabase } = await getOptionalAuthContext();
   return getThemeFunRankingWithClient(supabase);
 }
+
+
+
 
 
 

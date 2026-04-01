@@ -101,6 +101,14 @@ export interface ThemeFunRankInfo {
   nickname: string;
 }
 
+export interface UserAccessLog {
+  id: string;
+  user_id: string;
+  path: string;
+  user_agent: string | null;
+  created_at: string;
+}
+
 export interface PartyListItem extends TaxiParty {
   creatorNickname: string;
   lastRideAtWithCreator: string | null;
@@ -142,4 +150,5 @@ export interface ActivePartySnapshot extends TaxiParty {
   seatsLeft: number;
   myMembershipStatus: MemberStatus | null;
 }
+
 
