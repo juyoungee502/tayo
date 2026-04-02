@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import { joinPartyAction } from "@/lib/actions/app-actions";
 import { DEFAULT_DESTINATION } from "@/lib/constants";
@@ -20,7 +20,7 @@ function isImmediateParty(scheduledAt: string) {
 }
 
 function buildCreateHref(q: string) {
-  const departure = q || "역곡역";
+  const departure = q || "���";
   return `/parties/new?departure=${encodeURIComponent(departure)}&mode=instant`;
 }
 
@@ -58,46 +58,46 @@ function PartyListSection({
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link href={`/parties/${party.id}`} className="text-lg font-semibold text-slateBlue">{party.departure_place_name}</Link>
-                    {urgent ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">급해요</span> : null}
-                    {immediate ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">곧 출발</span> : null}
-                    {closingSoon ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">마감 임박</span> : null}
+                    {urgent ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">���ؿ�</span> : null}
+                    {immediate ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">�� ���</span> : null}
+                    {closingSoon ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">���� �ӹ�</span> : null}
                   </div>
                   {party.destination_name !== DEFAULT_DESTINATION.placeName ? <p className="text-sm text-slate-500">{party.destination_name}</p> : null}
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${immediate ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-600"}`}>
-                  {immediate ? "바로 출발" : "예약"}
+                  {immediate ? "�ٷ� ���" : "����"}
                 </span>
               </div>
 
               <div className="space-y-1 text-sm text-slate-600">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span>생성자: {party.creatorNickname}</span>
+                  <span>������: {party.creatorNickname}</span>
                   <ThemeRankBadge rank={party.creatorThemeFunRank} />
                 </div>
                 {party.sharedRideCount > 0 ? (
                   <p className="text-xs text-brand-700">
-                    {formatDate(party.lastRideAtWithCreator ?? new Date().toISOString())}에 {party.creatorNickname}님과 같이 탑승했고, 지금까지 총 {party.sharedRideCount}번 같이 탔어요.
+                    {formatDate(party.lastRideAtWithCreator ?? new Date().toISOString())}�� {party.creatorNickname}�԰� ���� ž���߰�, ���ݱ��� �� {party.sharedRideCount}�� ���� �����.
                   </p>
                 ) : null}
                 {party.creatorReviewCount > 0 && party.creatorAverageRating ? (
-                  <p className="text-xs text-slate-500">생성자 후기 요약: 평균 {party.creatorAverageRating} / 5.0 ({party.creatorReviewCount}개)</p>
+                  <p className="text-xs text-slate-500">������ �ı� ���: ��� {party.creatorAverageRating} / 5.0 ({party.creatorReviewCount}��)</p>
                 ) : null}
-                <p>현재 인원 / 최대 인원: {party.joinedCount}/{party.capacity}명</p>
-                <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
-                {!immediate ? <p>출발 시간: {formatDateTime(party.scheduled_at)}</p> : <p>지금 바로 모이면 출발하기 좋아요.</p>}
-                {note ? <p>계좌/메모: {note}</p> : null}
+                <p>���� �ο� / �ִ� �ο�: {party.joinedCount}/{party.capacity}��</p>
+                <p>���� 1�δ� �ݾ�: �� {estimatedShare.toLocaleString()}��</p>
+                {!immediate ? <p>��� �ð�: {formatDateTime(party.scheduled_at)}</p> : <p>���� �ٷ� ���̸� ����ϱ� ���ƿ�.</p>}
+                {note ? <p>����/�޸�: {note}</p> : null}
               </div>
 
               {party.isJoinable ? (
                 <form action={joinPartyAction.bind(null, party.id)}>
-                  <button type="submit" className={buttonStyles("primary", true)}>바로 참여하기</button>
+                  <button type="submit" className={buttonStyles("primary", true)}>�ٷ� �����ϱ�</button>
                 </form>
               ) : (
                 <div className="space-y-2">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
-                    지금은 참여할 수 없는 팟이지만 모집 중 상태는 확인할 수 있어요.
+                    ������ ������ �� ���� �������� ���� �� ���´� Ȯ���� �� �־��.
                   </div>
-                  <Link href={`/parties/${party.id}`} className={buttonStyles("secondary", true)}>상세 보기</Link>
+                  <Link href={`/parties/${party.id}`} className={buttonStyles("secondary", true)}>�� ����</Link>
                 </div>
               )}
             </div>
@@ -122,6 +122,7 @@ export default async function PartiesPage({
   const activeParties = parties.filter((party) => party.status === "recruiting");
   const immediateParties = activeParties.filter((party) => isImmediateParty(party.scheduled_at));
   const reservedParties = activeParties.filter((party) => !isImmediateParty(party.scheduled_at));
+  const joinableCount = activeParties.filter((party) => party.isJoinable).length;
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-4">
@@ -131,40 +132,67 @@ export default async function PartiesPage({
       <Card className="p-5">
         <div className="space-y-4">
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-brand-700">출발지 선택</p>
-            <h1 className="text-2xl font-bold text-slateBlue">{q ? `${q}에서 출발` : "어디서 출발하나요?"}</h1>
+            <p className="text-sm font-semibold text-brand-700">Ž�� ���</p>
+            <h1 className="text-2xl font-bold text-slateBlue">{q ? `${q}���� ���` : "��� ����ϳ���?"}</h1>
+            <p className="text-sm text-slate-500">�� ����ϴ� �̺��� ���� �����帮��, ������ �ٷ� ������ ���� �� �ְ� �ȳ��ص����.</p>
           </div>
 
-          {chooser || !q ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <Link href="/parties?q=역곡역" className={`${buttonStyles("secondary", true)} text-sm`}>역곡역</Link>
-                <Link href="/parties?q=온수역" className={`${buttonStyles("secondary", true)} text-sm`}>온수역</Link>
-                <Link href="/parties?q=소사역" className={`${buttonStyles("secondary", true)} text-sm`}>소사역</Link>
-                <Link href="/parties?q=개봉역" className={`${buttonStyles("secondary", true)} text-sm`}>개봉역</Link>
-              </div>
+          <form action="/parties" className="space-y-3">
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="����� ���� �Է�"
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring"
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="submit" className={buttonStyles("primary", true)}>�ٽ� ã��</button>
+              <Link href={buildCreateHref(q)} className={buttonStyles("secondary", true)}>�� �������� ���� �����</Link>
+            </div>
+          </form>
 
-              <form className="space-y-2">
-                <input name="q" placeholder="직접 입력" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring" />
-                <button type="submit" className={buttonStyles("primary", true)}>결과 보기</button>
-              </form>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {["���", "�¼���", "�һ翪", "������"].map((station) => (
+              <Link key={station} href={`/parties?q=${encodeURIComponent(station)}`} className={`${buttonStyles(q === station ? "primary" : "secondary", true)} text-sm`}>
+                {station}
+              </Link>
+            ))}
+          </div>
+
+          {q ? (
+            <div className="grid grid-cols-2 gap-3 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">���� ��</p>
+                <p className="mt-1 text-lg font-semibold text-slateBlue">{activeParties.length}��</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">���� ���� ����</p>
+                <p className="mt-1 text-lg font-semibold text-brand-700">{joinableCount}��</p>
+              </div>
             </div>
-          ) : (
+          ) : null}
+
+          {!chooser && q ? (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-slate-500">곧 출발하는 팟부터 먼저 보여드려요.</p>
-              <Link href="/parties?chooser=1" className="text-sm font-semibold text-brand-700 underline underline-offset-4">출발지 바꾸기</Link>
+              <p className="text-sm text-slate-500">������� �ٲٰ� ������ �Ʒ� ��ư�� ��������.</p>
+              <Link href="/parties?chooser=1" className="text-sm font-semibold text-brand-700 underline underline-offset-4">����� �ٲٱ�</Link>
             </div>
-          )}
+          ) : null}
         </div>
       </Card>
 
+      {chooser || !q ? (
+        <Card className="p-5">
+          <p className="text-sm text-slate-500">���� ���� �����ų� ���� �Է��ؼ� �ٷ� ����� �� �� �־��.</p>
+        </Card>
+      ) : null}
+
       {q ? activeParties.length > 0 ? (
         <div className="space-y-5">
-          <PartyListSection title="곧 출발" description="20분 안에 출발하는 팟이에요. 가장 먼저 확인해보세요." parties={immediateParties} />
-          <PartyListSection title="예약 출발" description="조금 뒤에 출발하는 팟이에요." parties={reservedParties} />
+          <PartyListSection title="�� ���" description="20�� �ȿ� ����ϴ� ���̿���. ���� ���� Ȯ���غ�����." parties={immediateParties} />
+          <PartyListSection title="���� ���" description="���� �ڿ� ����ϴ� ���̿���." parties={reservedParties} />
         </div>
       ) : (
-        <EmptyState title="지금 모집 중인 택시팟이 없어요" description="바로 참여할 수 있는 팟이 없다면 직접 모집을 시작해보세요." actionHref={buildCreateHref(q)} actionLabel="택시팟 만들기" />
+        <EmptyState title="���� ���� ���� �ý����� �����" description="���� Ż ����� ���ٸ� �ٷ� ������ ��� ���� Ÿ�̹��� ��ƺ�����." actionHref={buildCreateHref(q)} actionLabel="�ý��� �����" />
       ) : null}
     </div>
   );

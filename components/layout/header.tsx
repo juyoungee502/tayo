@@ -1,9 +1,34 @@
-﻿import Link from "next/link";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { signOutAction } from "@/lib/actions/app-actions";
+import { cn } from "@/lib/utils";
 
-function navLinkClass() {
-  return "inline-flex h-10 w-full items-center justify-center rounded-2xl border border-white/70 bg-white/70 px-1 text-[11px] font-semibold text-slateBlue transition hover:bg-white sm:h-11 sm:text-sm";
+function isActivePath(pathname: string, href: string) {
+  if (href === "/home") {
+    return pathname === "/" || pathname === "/home";
+  }
+
+  if (href === "/parties") {
+    return pathname === "/parties" || /^\/parties\/[A-Za-z0-9-]+$/.test(pathname);
+  }
+
+  if (href === "/parties/new") {
+    return pathname === "/parties/new";
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function navLinkClass(active: boolean) {
+  return cn(
+    "inline-flex h-10 w-full items-center justify-center rounded-2xl border px-1 text-[11px] font-semibold transition sm:h-11 sm:text-sm",
+    active
+      ? "border-brand-300 bg-brand-100 text-slateBlue shadow-sm shadow-brand-200/40"
+      : "border-white/70 bg-white/70 text-slateBlue hover:bg-white",
+  );
 }
 
 export function LogoutButton() {
@@ -13,7 +38,7 @@ export function LogoutButton() {
         type="submit"
         className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slateBlue transition hover:bg-brand-50 sm:px-3 sm:py-1.5 sm:text-xs"
       >
-        로그아웃
+        �α׾ƿ�
       </button>
     </form>
   );
@@ -29,20 +54,21 @@ export function Header({
       }
     | null;
 }) {
+  const pathname = usePathname();
   const navItems = profile
     ? [
-        { href: "/home", label: "홈" },
-        { href: "/parties", label: "택시팟" },
-        { href: "/parties/new", label: "생성" },
-        { href: "/waiting", label: "뭐먹지" },
-        { href: "/mypage", label: "내 현황" },
-        ...(profile.role === "admin" ? [{ href: "/admin", label: "관리" }] : []),
+        { href: "/home", label: "Ȩ" },
+        { href: "/parties", label: "�ý��� ã��" },
+        { href: "/parties/new", label: "����" },
+        { href: "/waiting", label: "������" },
+        { href: "/mypage", label: "�� ��Ȳ" },
+        ...(profile.role === "admin" ? [{ href: "/admin", label: "����" }] : []),
       ]
     : [
-        { href: "/home", label: "홈" },
-        { href: "/parties", label: "택시팟" },
-        { href: "/waiting", label: "뭐먹지" },
-        { href: "/login", label: "로그인" },
+        { href: "/home", label: "Ȩ" },
+        { href: "/parties", label: "�ý��� ã��" },
+        { href: "/waiting", label: "������" },
+        { href: "/login", label: "�α���" },
       ];
 
   const navGridClass =
@@ -57,8 +83,8 @@ export function Header({
               T
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold leading-none text-slateBlue">타요</p>
-              <p className="hidden truncate pt-0.5 text-[10px] text-slate-500 sm:block">성심교정 학생 택시 합승</p>
+              <p className="truncate text-sm font-semibold leading-none text-slateBlue">Ÿ��</p>
+              <p className="hidden truncate pt-0.5 text-[10px] text-slate-500 sm:block">���ɱ��� �л� �ý� �ս�</p>
             </div>
           </Link>
 
@@ -72,14 +98,14 @@ export function Header({
               href="/login"
               className="inline-flex items-center justify-center rounded-full border border-brand-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slateBlue transition hover:bg-brand-50 sm:px-3 sm:py-1.5 sm:text-xs"
             >
-              로그인
+              �α���
             </Link>
           )}
         </div>
 
         <nav className={`grid ${navGridClass} gap-1`}>
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className={navLinkClass()}>
+            <Link key={item.href} href={item.href} className={navLinkClass(isActivePath(pathname, item.href))}>
               {item.label}
             </Link>
           ))}

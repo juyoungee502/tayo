@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,7 @@ import {
 } from "@/lib/actions/app-actions";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
 import { getPartyDetail } from "@/lib/queries/data";
-import { estimateTaxiShare, formatDateTime, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
+import { estimateTaxiShare, formatDateTime, formatRelativeStatus, isUrgentParty, stripUrgentMarker } from "@/lib/utils";
 
 function pickParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -60,15 +60,39 @@ export default async function PartyDetailPage({
   const urgent = isUrgentParty(party.note);
   const cleanNote = stripUrgentMarker(party.note);
   const estimatedShare = estimateTaxiShare(party.joinedCount, party.capacity, party.departure_place_name);
+  const summaryStatus = shouldPromptLogin
+    ? "�α��� �� ���� ����"
+    : canJoin
+      ? "���� �ٷ� ���� ����"
+      : isJoined
+        ? "���� ���� ��"
+        : hasMembershipHistory
+          ? "�̹� ���� �̷� ����"
+          : isClosed
+            ? "����� ��"
+            : seatsLeft === 0
+              ? "���� ����"
+              : "�� Ȯ�� �ʿ�";
+  const nextActionLabel = shouldPromptLogin
+    ? "�α��� �� �����ϱ�"
+    : canJoin
+      ? "�ٷ� �����ϱ�"
+      : canLeave
+        ? "���� ����ϱ�"
+        : canMarkDeparted
+          ? "��� �Ϸ� ó���ϱ�"
+          : canNudge
+            ? "�����ڿ��� ��� ��û�ϱ�"
+            : "����� ���� Ȯ�� �ܰ�";
 
   return (
     <div className="space-y-6">
       {message ? <Notice variant="success">{message}</Notice> : null}
       {error ? <Notice variant="error">{error}</Notice> : null}
-      {party.hasAnotherActiveParty && !isJoined ? <Notice variant="warning">이미 다른 활성 택시팟에 참여 중이라 새 팟에 바로 합류할 수 없습니다.</Notice> : null}
-      {hasMembershipHistory && !isJoined ? <Notice variant="info">이 택시팟에는 이미 참여 이력이 있어 다시 참여 버튼을 노출하지 않습니다.</Notice> : null}
-      {party.isFeedbackDue && !party.hasSubmittedFeedback ? <Notice variant="warning">피드백 기한이 도래했습니다. <Link href={`/feedback/${party.id}`} className="font-semibold underline">후기/신고 페이지로 이동</Link></Notice> : null}
-      {!party.isFeedbackDue && party.status === "completed" && party.currentUserMembership ? <Notice variant="info">운행은 완료됐고, 피드백은 출발 1시간 뒤부터 열립니다. <Link href={`/feedback/${party.id}`} className="font-semibold underline">피드백 페이지 바로가기</Link></Notice> : null}
+      {party.hasAnotherActiveParty && !isJoined ? <Notice variant="warning">�̹� �ٸ� Ȱ�� �ý��̿� ���� ���̶� �� �̿� �ٷ� �շ��� �� �����ϴ�.</Notice> : null}
+      {hasMembershipHistory && !isJoined ? <Notice variant="info">�� �ý��̿��� �̹� ���� �̷��� �־� �ٽ� ���� ��ư�� �������� �ʽ��ϴ�.</Notice> : null}
+      {party.isFeedbackDue && !party.hasSubmittedFeedback ? <Notice variant="warning">�ǵ�� ������ �����߽��ϴ�. <Link href={`/feedback/${party.id}`} className="font-semibold underline">�ı�/�Ű� �������� �̵�</Link></Notice> : null}
+      {!party.isFeedbackDue && party.status === "completed" && party.currentUserMembership ? <Notice variant="info">������ �Ϸ�ư�, �ǵ���� ��� 1�ð� �ں��� �����ϴ�. <Link href={`/feedback/${party.id}`} className="font-semibold underline">�ǵ�� ������ �ٷΰ���</Link></Notice> : null}
 
       <Card className="bg-mesh-glow">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -76,34 +100,44 @@ export default async function PartyDetailPage({
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="font-[var(--font-display)] text-3xl font-bold text-slateBlue">{party.departure_place_name}</h1>
               <StatusPill status={party.status} />
-              {urgent ? <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-600">급해요</span> : null}
-              {seatsLeft === 1 && party.status === "recruiting" ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">마감 임박</span> : null}
+              {urgent ? <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-600">���ؿ�</span> : null}
+              {seatsLeft === 1 && party.status === "recruiting" ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">���� �ӹ�</span> : null}
             </div>
             <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-              <p>도착지: {party.destination_name}</p>
-              <p>출발 시간: {formatDateTime(party.scheduled_at)}</p>
-              <p>현재 인원 / 최대 인원: {party.joinedCount}/{party.capacity}명</p>
-              <p>예상 1인당 금액: 약 {estimatedShare.toLocaleString()}원</p>
-              <p>남은 자리 수: {seatsLeft}석</p>
+              <p>������: {party.destination_name}</p>
+              <p>��� �ð�: {formatDateTime(party.scheduled_at)}</p>
+              <p>���� �ο� / �ִ� �ο�: {party.joinedCount}/{party.capacity}��</p>
+              <p>���� 1�δ� �ݾ�: �� {estimatedShare.toLocaleString()}��</p>
+              <p>���� �ڸ� ��: {seatsLeft}��</p>
               <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
-                <p>생성자: {party.creator?.nickname ?? "알 수 없음"}</p>
+                <p>������: {party.creator?.nickname ?? "�� �� ����"}</p>
                 <ThemeRankBadge rank={party.creatorThemeFunRank} />
               </div>
-              {party.creatorReviewCount > 0 && party.creatorAverageRating ? <p>후기 평균: {party.creatorAverageRating} / 5.0 ({party.creatorReviewCount}개)</p> : null}
-              {party.departure_detail ? <p className="sm:col-span-2">상세 위치: {party.departure_detail}</p> : null}
-              {cleanNote ? <p className="sm:col-span-2">계좌/메모: {cleanNote}</p> : null}
+              {party.creatorReviewCount > 0 && party.creatorAverageRating ? <p>�ı� ���: {party.creatorAverageRating} / 5.0 ({party.creatorReviewCount}��)</p> : null}
+              {party.departure_detail ? <p className="sm:col-span-2">�� ��ġ: {party.departure_detail}</p> : null}
+              {cleanNote ? <p className="sm:col-span-2">����/�޸�: {cleanNote}</p> : null}
             </div>
           </div>
 
           <div className="w-full max-w-sm space-y-3">
-            {canJoin ? <form action={joinPartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("primary", true)}>참여하기</button></form> : null}
-            {canLeave ? <form action={leavePartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("secondary", true)}>참여 취소</button></form> : null}
-            {canNudge ? <form action={nudgePartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("secondary", true)}>지금 출발해요</button></form> : null}
-            {canMarkDeparted ? <form action={markPartyDepartedAction.bind(null, party.id)}><button type="submit" className={buttonStyles("primary", true)}>출발했어요!</button></form> : null}
-            {canCancel ? <form action={cancelPartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("danger", true)}>파티 취소</button></form> : null}
+            <div className="rounded-3xl border border-slate-200 bg-white/90 p-4">
+              <p className="text-sm font-semibold text-slateBlue">���� �� �̿��� �ٷ� �� ��</p>
+              <p className="mt-2 text-sm text-slate-500">���� �߿��� ���� �ൿ�� ���� �����帱�Կ�.</p>
+              <div className="mt-4 grid gap-2 rounded-2xl bg-slate-50/80 p-3 text-sm text-slate-600">
+                <p>��߱���: {formatRelativeStatus(party.scheduled_at)}</p>
+                <p>�� ����: {summaryStatus}</p>
+                <p>���� �ൿ: {nextActionLabel}</p>
+              </div>
+            </div>
+
+            {canJoin ? <form action={joinPartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("primary", true)}>�ٷ� �����ϱ�</button></form> : null}
+            {canLeave ? <form action={leavePartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("secondary", true)}>���� ���</button></form> : null}
+            {canNudge ? <form action={nudgePartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("secondary", true)}>���� ����ؿ�</button></form> : null}
+            {canMarkDeparted ? <form action={markPartyDepartedAction.bind(null, party.id)}><button type="submit" className={buttonStyles("primary", true)}>����߾��!</button></form> : null}
+            {canCancel ? <form action={cancelPartyAction.bind(null, party.id)}><button type="submit" className={buttonStyles("danger", true)}>��Ƽ ���</button></form> : null}
             <SharePartyButton partyId={party.id} />
-            {shouldPromptLogin ? <Link href="/login" className={buttonStyles("primary", true)}>로그인 후 참여하기</Link> : null}
-            {!canJoin && !canLeave && !canCancel && !canNudge && !canMarkDeparted && !shouldPromptLogin ? <Notice variant="info">현재 상태에서는 추가 액션이 없습니다. 아래 정보로 상태를 확인해주세요.</Notice> : null}
+            {shouldPromptLogin ? <Link href="/login" className={buttonStyles("primary", true)}>�α��� �� �����ϱ�</Link> : null}
+            {!canJoin && !canLeave && !canCancel && !canNudge && !canMarkDeparted && !shouldPromptLogin ? <Notice variant="info">���� ���¿����� �߰� �׼��� �����ϴ�. �Ʒ� ������ ���¸� Ȯ�����ּ���.</Notice> : null}
           </div>
         </div>
       </Card>
@@ -112,26 +146,26 @@ export default async function PartyDetailPage({
         <Card>
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold text-slateBlue">출발 체크리스트</h2>
-              <p className="mt-1 text-sm text-slate-500">출발 전 준비 상태를 가볍게 표시해둘 수 있어요.</p>
+              <h2 className="text-xl font-semibold text-slateBlue">��� üũ����Ʈ</h2>
+              <p className="mt-1 text-sm text-slate-500">��� �� �غ� ���¸� ������ ǥ���ص� �� �־��.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <form action={updateDepartureChecklistAction.bind(null, party.id)} className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
                 <input type="hidden" name="field" value="taxi_called" />
                 <input type="hidden" name="value" value={party.taxi_called ? "false" : "true"} />
-                <p className="text-sm font-semibold text-slateBlue">택시 호출</p>
-                <p className="mt-1 text-sm text-slate-500">{party.taxi_called ? "택시를 이미 불렀어요." : "아직 호출 전이에요."}</p>
+                <p className="text-sm font-semibold text-slateBlue">�ý� ȣ��</p>
+                <p className="mt-1 text-sm text-slate-500">{party.taxi_called ? "�ýø� �̹� �ҷ����." : "���� ȣ�� ���̿���."}</p>
                 <button type="submit" className={`${buttonStyles("secondary")} mt-3 w-full`}>
-                  {party.taxi_called ? "호출 전으로 되돌리기" : "택시 잡았어요"}
+                  {party.taxi_called ? "ȣ�� ������ �ǵ�����" : "�ý� ��Ҿ��"}
                 </button>
               </form>
               <form action={updateDepartureChecklistAction.bind(null, party.id)} className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
                 <input type="hidden" name="field" value="everyone_ready" />
                 <input type="hidden" name="value" value={party.everyone_ready ? "false" : "true"} />
-                <p className="text-sm font-semibold text-slateBlue">전원 도착</p>
-                <p className="mt-1 text-sm text-slate-500">{party.everyone_ready ? "다 모였어요." : "아직 모이는 중이에요."}</p>
+                <p className="text-sm font-semibold text-slateBlue">���� ����</p>
+                <p className="mt-1 text-sm text-slate-500">{party.everyone_ready ? "�� �𿴾��." : "���� ���̴� ���̿���."}</p>
                 <button type="submit" className={`${buttonStyles("secondary")} mt-3 w-full`}>
-                  {party.everyone_ready ? "다시 확인중으로 바꾸기" : "다 모였어요"}
+                  {party.everyone_ready ? "�ٽ� Ȯ�������� �ٲٱ�" : "�� �𿴾��"}
                 </button>
               </form>
             </div>
@@ -143,18 +177,18 @@ export default async function PartyDetailPage({
         <Card>
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold text-slateBlue">서로 찾기 메모</h2>
-              <p className="mt-1 text-sm text-slate-500">옷차림이나 서 있는 위치를 짧게 남겨두면 서로 찾기 쉬워져요.</p>
+              <h2 className="text-xl font-semibold text-slateBlue">���� ã�� �޸�</h2>
+              <p className="mt-1 text-sm text-slate-500">�������̳� �� �ִ� ��ġ�� ª�� ���ܵθ� ���� ã�� ��������.</p>
             </div>
             <form action={savePartyMemberNoteAction.bind(null, party.id)} className="space-y-3">
               <textarea
                 name="note"
                 defaultValue={currentUserNote}
                 maxLength={80}
-                placeholder="예: 검은 패딩 입고 정문 앞에서 기다리고 있어요"
+                placeholder="��: ���� �е� �԰� ���� �տ��� ��ٸ��� �־��"
                 className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring"
               />
-              <button type="submit" className={buttonStyles("secondary")}>메모 저장</button>
+              <button type="submit" className={buttonStyles("secondary")}>�޸� ����</button>
             </form>
           </div>
         </Card>
@@ -164,10 +198,10 @@ export default async function PartyDetailPage({
         <Card>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slateBlue">참여자 목록</h2>
-              <p className="text-sm text-slate-500">작성자는 자동으로 첫 번째 멤버로 포함됩니다.</p>
+              <h2 className="text-xl font-semibold text-slateBlue">������ ���</h2>
+              <p className="text-sm text-slate-500">�ۼ��ڴ� �ڵ����� ù ��° ����� ���Ե˴ϴ�.</p>
             </div>
-            <p className="text-sm text-slate-500">남은 자리 {seatsLeft}석</p>
+            <p className="text-sm text-slate-500">���� �ڸ� {seatsLeft}��</p>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {party.members.map((participant) => (
@@ -180,12 +214,12 @@ export default async function PartyDetailPage({
                     </div>
                     <p className="text-xs text-slate-500">{participant.profile.school}</p>
                     {participant.profile.department || participant.profile.student_number ? (
-                      <p className="text-xs text-slate-400">{[participant.profile.department, participant.profile.student_number].filter(Boolean).join(" · ")}</p>
+                      <p className="text-xs text-slate-400">{[participant.profile.department, participant.profile.student_number].filter(Boolean).join(" �� ")}</p>
                     ) : null}
                   </div>
-                  <p className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">{participant.membership.user_id === party.creator_id ? "작성자" : participant.membership.status}</p>
+                  <p className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">{participant.membership.user_id === party.creator_id ? "�ۼ���" : participant.membership.status}</p>
                 </div>
-                {participant.note ? <p className="mt-3 rounded-2xl bg-white px-3 py-2 text-xs text-slate-600">찾기 메모: {participant.note}</p> : null}
+                {participant.note ? <p className="mt-3 rounded-2xl bg-white px-3 py-2 text-xs text-slate-600">ã�� �޸�: {participant.note}</p> : null}
               </div>
             ))}
           </div>
@@ -194,31 +228,31 @@ export default async function PartyDetailPage({
         <Card>
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold text-slateBlue">내 노래추천</h2>
-              <p className="mt-1 text-sm text-slate-500">기다리는 동안 같이 들으면 좋은 곡들입니다.</p>
+              <h2 className="text-xl font-semibold text-slateBlue">�� �뷡��õ</h2>
+              <p className="mt-1 text-sm text-slate-500">��ٸ��� ���� ���� ������ ���� ����Դϴ�.</p>
             </div>
             <div className="space-y-4 rounded-3xl bg-slate-50/80 p-4 text-sm text-slate-600">
               <div className="space-y-1">
-                <p className="font-semibold text-slateBlue">1. 말씀으로 우리 길 - WELOVE</p>
-                <p>&quot;영원한 삶으로 우릴 초대 하시니&quot; ♬ ♫ ♪ ♩</p>
+                <p className="font-semibold text-slateBlue">1. �������� �츮 �� - WELOVE</p>
+                <p>&quot;������ ������ �츱 �ʴ� �Ͻô�&quot; �� ? �� ��</p>
               </div>
               <div className="space-y-1">
-                <p className="font-semibold text-slateBlue">2. 사랑한다는 말로도 위로가 되지 않는 - 브로콜리 너마저</p>
-                <p>&quot;정작 힘겨운 날엔 우린 전혀 상관없는 얘기만을 하지&quot; ♬ ♫ ♪</p>
+                <p className="font-semibold text-slateBlue">2. ����Ѵٴ� ���ε� ���ΰ� ���� �ʴ� - ����ݸ� �ʸ���</p>
+                <p>&quot;���� ���ܿ� ���� �츰 ���� ������� ��⸸�� ����&quot; �� ? ��</p>
               </div>
             </div>
             {isCreator && !isClosed ? (
               <form action={updatePartyCapacityAction.bind(null, party.id)} className="space-y-2 rounded-3xl border border-brand-200 bg-brand-50/70 p-4">
-                <label className="block text-sm font-semibold text-slateBlue">정원 수정</label>
+                <label className="block text-sm font-semibold text-slateBlue">���� ����</label>
                 <select name="capacity" defaultValue={String(party.capacity)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring">
                   {[2, 3, 4].map((value) => (
-                    <option key={value} value={value} disabled={value < party.joinedCount}>{value}명</option>
+                    <option key={value} value={value} disabled={value < party.joinedCount}>{value}��</option>
                   ))}
                 </select>
-                <button type="submit" className={buttonStyles("secondary", true)}>정원 저장</button>
+                <button type="submit" className={buttonStyles("secondary", true)}>���� ����</button>
               </form>
             ) : null}
-            <Link href="/parties" className={buttonStyles("secondary", true)}>다른 택시팟도 보기</Link>
+            <Link href="/parties" className={buttonStyles("secondary", true)}>�ٸ� �ý��̵� ����</Link>
           </div>
         </Card>
       </div>

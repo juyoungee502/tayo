@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
@@ -9,9 +9,9 @@ function pickParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-const START_OPTIONS = ["역곡역", "온수역", "소사역", "개봉역"];
+const START_OPTIONS = ["���", "�¼���", "�һ翪", "������"];
 const TODAY_VERSE = "We love because he first loved us.";
-const TODAY_ONE_LINER = "오늘도 급하면 생각보다 빨리 같이 탈 수 있어요.";
+const TODAY_ONE_LINER = "���õ� ���ϸ� �������� ���� ���� Ż �� �־��.";
 
 export default async function HomePage({
   searchParams,
@@ -30,11 +30,11 @@ export default async function HomePage({
         <Card className="bg-mesh-glow p-6 sm:p-8 md:p-10">
           <div className="space-y-6">
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-brand-700">출발지 선택</p>
+              <p className="text-sm font-semibold text-brand-700">������ ã��</p>
               <h1 className="font-[var(--font-display)] text-3xl font-bold text-slateBlue sm:text-5xl">
-                어디서 출발하나요?
+                ��� ����ϳ���?
               </h1>
-              <p className="text-sm text-slate-500">자주 쓰는 역부터 바로 눌러서 팟을 확인할 수 있어요.</p>
+              <p className="text-sm text-slate-500">���� ���� �����, ��� ������ �ٷ� �����ϰ�, ������ �ٷ� ����� �˴ϴ�.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -42,16 +42,20 @@ export default async function HomePage({
                 <Link
                   key={station}
                   href={`/parties?q=${encodeURIComponent(station)}`}
-                  className="flex min-h-24 items-center justify-center rounded-3xl border border-brand-200 bg-white/90 px-6 py-6 text-center text-xl font-semibold text-slateBlue transition hover:-translate-y-0.5 hover:bg-brand-50"
+                  className="group flex min-h-24 flex-col items-center justify-center rounded-3xl border border-brand-200 bg-white/90 px-5 py-5 text-center transition hover:-translate-y-0.5 hover:bg-brand-50"
                 >
-                  {station}
+                  <span className="text-xl font-semibold text-slateBlue">{station}</span>
+                  <span className="mt-1 text-xs text-slate-400 group-hover:text-slate-500">���� �� �� �ٷ� ����</span>
                 </Link>
               ))}
             </div>
 
             {favoriteDepartures.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">즐겨찾는 출발지</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">���ã�� �����</p>
+                  <p className="text-xs text-slate-400">�ֱ� ���� ž���� ��</p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {favoriteDepartures.map((departure) => (
                     <Link key={departure} href={`/parties?q=${encodeURIComponent(departure)}`} className={buttonStyles("secondary")}>
@@ -62,15 +66,20 @@ export default async function HomePage({
               </div>
             ) : null}
 
-            <form action="/parties" className="space-y-4">
+            <form action="/parties" className="space-y-3">
               <input
                 name="q"
-                placeholder="직접 입력"
-                className="w-full rounded-3xl border border-slate-200 bg-white px-8 py-6 text-2xl font-medium text-slateBlue outline-none ring-brand-200 transition focus:ring"
+                placeholder="���� �Է�"
+                className="w-full rounded-3xl border border-slate-200 bg-white px-8 py-5 text-xl font-medium text-slateBlue outline-none ring-brand-200 transition focus:ring sm:text-2xl"
               />
-              <button type="submit" className={buttonStyles("primary", true)}>
-                결과 보기
-              </button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button type="submit" className={buttonStyles("primary", true)}>
+                  �ý��� ã��
+                </button>
+                <Link href="/parties/new?departure=���&mode=instant" className={buttonStyles("secondary", true)}>
+                  �ٷ� ���� �����
+                </Link>
+              </div>
             </form>
           </div>
         </Card>
@@ -78,15 +87,15 @@ export default async function HomePage({
         <div className="grid gap-4 sm:grid-cols-2">
           <Card className="p-5">
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-slateBlue">오늘 몇 명 탔는지</p>
-              <p className="text-3xl font-bold text-brand-700">{todayStats.riders}명</p>
-              <p className="text-sm text-slate-500">오늘 완료된 택시팟 {todayStats.completedParties}건</p>
+              <p className="text-sm font-semibold text-slateBlue">���� �󸶳� ����������</p>
+              <p className="text-3xl font-bold text-brand-700">{todayStats.riders}��</p>
+              <p className="text-sm text-slate-500">���� �Ϸ�� �ý��� {todayStats.completedParties}��</p>
             </div>
           </Card>
 
           <Card className="p-5">
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-slateBlue">오늘의 말씀 / 한 줄</p>
+              <p className="text-sm font-semibold text-slateBlue">������ ���� / �� ��</p>
               <p className="text-sm font-semibold text-brand-700">{TODAY_VERSE}</p>
               <p className="text-sm text-slate-500">{TODAY_ONE_LINER}</p>
             </div>
