@@ -25,36 +25,6 @@ function buildCreateHref(q: string) {
   return `/parties/new?departure=${encodeURIComponent(departure)}&mode=instant`;
 }
 
-function getStatusMeta(status: PartyListItem["status"]) {
-  switch (status) {
-    case "recruiting":
-      return {
-        label: "모집 중",
-        className: "bg-emerald-100 text-emerald-700",
-      };
-    case "full":
-      return {
-        label: "정원 마감",
-        className: "bg-amber-100 text-amber-700",
-      };
-    case "completed":
-      return {
-        label: "운행 완료",
-        className: "bg-slate-200 text-slate-600",
-      };
-    case "expired":
-      return {
-        label: "시간 지남",
-        className: "bg-slate-200 text-slate-600",
-      };
-    default:
-      return {
-        label: "종료",
-        className: "bg-slate-200 text-slate-600",
-      };
-  }
-}
-
 function getJoinDisabledCopy(party: PartyListItem) {
   switch (party.joinDisabledReason) {
     case "already_joined":
@@ -99,11 +69,10 @@ function PartyListSection({
         const estimatedShare = estimateTaxiShare(party.joinedCount, party.capacity, party.departure_place_name);
         const urgent = isUrgentParty(party.note);
         const note = stripUrgentMarker(party.note);
-        const closingSoon = party.seatsLeft === 1 && party.status === "recruiting";
-        const status = getStatusMeta(party.status);
+        const closingSoon = party.seatsLeft === 1;
 
         return (
-          <Card key={party.id} className={`p-5 ${immediate && party.status === "recruiting" ? "border-brand-300 shadow-lg shadow-brand-200/60" : ""}`}>
+          <Card key={party.id} className={`p-5 ${immediate ? "border-brand-300 shadow-lg shadow-brand-200/60" : ""}`}>
             <div className="space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -111,17 +80,17 @@ function PartyListSection({
                     <Link href={`/parties/${party.id}`} className="text-lg font-semibold text-slateBlue">
                       {party.departure_place_name}
                     </Link>
-                    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${status.className}`}>{status.label}</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">모집 중</span>
                     {urgent ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">급해요</span> : null}
-                    {party.status === "recruiting" && immediate ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">곧 출발</span> : null}
+                    {immediate ? <span className="rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-600">곧 출발</span> : null}
                     {closingSoon ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">1자리 남음</span> : null}
                   </div>
                   {party.destination_name !== DEFAULT_DESTINATION.placeName ? (
                     <p className="text-sm text-slate-500">{party.destination_name}</p>
                   ) : null}
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${immediate && party.status === "recruiting" ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-600"}`}>
-                  {party.status === "recruiting" ? (immediate ? "바로 출발" : "예약") : status.label}
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${immediate ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-600"}`}>
+                  {immediate ? "바로 출발" : "예약"}
                 </span>
               </div>
 
@@ -177,8 +146,6 @@ export default async function PartiesPage({
   const parties = await getPartyList({ q });
 
   const recruitingParties = parties.filter((party) => party.status === "recruiting");
-  const fullParties = parties.filter((party) => party.status === "full");
-  const endedParties = parties.filter((party) => party.status === "completed" || party.status === "expired");
   const immediateParties = recruitingParties.filter((party) => isImmediateParty(party.scheduled_at));
   const reservedParties = recruitingParties.filter((party) => !isImmediateParty(party.scheduled_at));
   const joinableCount = recruitingParties.filter((party) => party.isJoinable).length;
@@ -193,7 +160,7 @@ export default async function PartiesPage({
           <div className="space-y-1">
             <p className="text-sm font-semibold text-brand-700">탐색 시작</p>
             <h1 className="text-2xl font-bold text-slateBlue">{q ? `${q}에서 출발하는 팟` : "어디에서 출발하나요?"}</h1>
-            <p className="text-sm text-slate-500">지금 탈 수 있는 팟부터 먼저 보고, 없으면 같은 조건으로 바로 모집을 열 수 있어요.</p>
+            <p className="text-sm text-slate-500">지금 사람을 구하고 있는 택시팟만 먼저 보여드릴게요.</p>
           </div>
 
           <form action="/parties" className="space-y-3">
@@ -205,7 +172,7 @@ export default async function PartiesPage({
             />
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="submit" className={buttonStyles("primary", true)}>택시팟 찾기</button>
-              <Link href={buildCreateHref(q)} className={buttonStyles("secondary", true)}>이 조건으로 모집 만들기</Link>
+              <Link href={buildCreateHref(q)} className={buttonStyles("secondary", true)}>택시팟 생성하기</Link>
             </div>
           </form>
 
@@ -228,15 +195,15 @@ export default async function PartiesPage({
                 <p className="mt-1 text-lg font-semibold text-brand-700">{joinableCount}개</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">정원 마감</p>
-                <p className="mt-1 text-lg font-semibold text-slateBlue">{fullParties.length}개</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">곧 출발</p>
+                <p className="mt-1 text-lg font-semibold text-slateBlue">{immediateParties.length}개</p>
               </div>
             </div>
           ) : null}
 
           {!chooser && q ? (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-slate-500">원하는 조건이 없으면 같은 출발지로 바로 모집을 시작해도 돼요.</p>
+              <p className="text-sm text-slate-500">원하는 출발지가 아니면 바로 다시 고를 수 있어요.</p>
               <Link href="/parties?chooser=1" className="text-sm font-semibold text-brand-700 underline underline-offset-4">출발지 다시 고르기</Link>
             </div>
           ) : null}
@@ -245,11 +212,11 @@ export default async function PartiesPage({
 
       {chooser || !q ? (
         <Card className="p-5">
-          <p className="text-sm text-slate-500">출발지를 먼저 고르면 지금 참여 가능한 팟부터 빠르게 보여드릴게요.</p>
+          <p className="text-sm text-slate-500">출발지를 먼저 고르면 지금 모집 중인 택시팟부터 빠르게 보여드릴게요.</p>
         </Card>
       ) : null}
 
-      {q ? parties.length > 0 ? (
+      {q ? recruitingParties.length > 0 ? (
         <div className="space-y-5">
           <PartyListSection
             title="곧 출발"
@@ -258,18 +225,8 @@ export default async function PartiesPage({
           />
           <PartyListSection
             title="예약 모집 중"
-            description="시간을 맞춰 이동할 수 있는 팟이에요."
+            description="시간을 맞춰 이동할 수 있는 모집 중 팟이에요."
             parties={reservedParties}
-          />
-          <PartyListSection
-            title="정원 마감"
-            description="이미 꽉 찼지만 현재 어떤 팟이 열려 있었는지 확인할 수 있어요."
-            parties={fullParties}
-          />
-          <PartyListSection
-            title="출발이 지난 팟"
-            description="이미 이동이 끝났거나 참여가 닫힌 팟이에요."
-            parties={endedParties}
           />
         </div>
       ) : (
@@ -277,7 +234,7 @@ export default async function PartiesPage({
           title="지금 모집 중인 택시팟이 없어요"
           description="같이 탈 사람을 기다리고 있다면, 먼저 모집을 열어 빠르게 모아보세요."
           actionHref={buildCreateHref(q)}
-          actionLabel="택시팟 만들기"
+          actionLabel="택시팟 생성하기"
         />
       ) : null}
     </div>
