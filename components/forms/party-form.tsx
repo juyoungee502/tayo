@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -186,12 +186,13 @@ export function PartyForm({
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-slateBlue">계좌번호</label>
+        <label className="block text-sm font-semibold text-slateBlue">정산 메모 / 계좌</label>
         <input
           name="note"
-          placeholder="예: 카카오뱅크 3333-12-3456789"
+          placeholder="예: 카카오뱅크 3333-12-3456789 / 현금 정산 예정"
           className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-base outline-none ring-brand-200 transition focus:ring"
         />
+        <p className="text-xs text-slate-500">계좌번호만 적어도 되고, 정산 방식이나 만나기 쉬운 한 줄 메모를 함께 남겨도 괜찮아요.</p>
         {state.fieldErrors?.note ? <p className="text-sm text-rose-600">{state.fieldErrors.note[0]}</p> : null}
       </div>
 

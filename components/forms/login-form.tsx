@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -135,7 +135,7 @@ export function LoginForm() {
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring"
           />
           <p className="text-xs leading-5 text-slate-500">
-            허용 도메인은 catholic.ac.kr, korea.ac.kr, gmail.com입니다. 추가를 원하시면 개발자 님에게 맛있는 것을 사주면 됩니다.
+            성심교정 학생 중심으로 운영 중이며, 현재는 catholic.ac.kr, korea.ac.kr, gmail.com 도메인을 지원합니다.
           </p>
         </div>
 
@@ -152,7 +152,7 @@ export function LoginForm() {
             placeholder="8자 이상 입력"
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-brand-200 transition focus:ring"
           />
-          <p className="text-xs text-slate-500">처음이라면 계정을 만들고, 이후에는 같은 이메일과 비밀번호로 바로 로그인합니다.</p>
+          <p className="text-xs text-slate-500">처음에는 계정을 만들고, 이후에는 같은 이메일과 비밀번호로 바로 로그인합니다.</p>
         </div>
 
         {message ? <Notice variant={status === "success" ? "success" : status === "error" ? "error" : "info"}>{message}</Notice> : null}

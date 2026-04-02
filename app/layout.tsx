@@ -1,18 +1,15 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Noto_Sans_KR, Space_Grotesk } from "next/font/google";
 
 import { Header } from "@/components/layout/header";
 import { buttonStyles } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   getActivePartySnapshotForCurrentUser,
   getPendingFeedbackPartiesForCurrentUser,
-  getThemeFunRanking,
 } from "@/lib/queries/data";
 import { getOptionalAuthContext } from "@/lib/queries/auth";
 import { estimateTaxiShare, formatRelativeStatus, isUrgentParty } from "@/lib/utils";
-import type { ThemeFunRankInfo } from "@/types/database";
 
 import "./globals.css";
 
@@ -38,35 +35,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let pendingFeedbackCount = 0;
   let pendingFeedbackHref = "/home";
   let activePartySnapshot = null;
-  let themeFunRanking: ThemeFunRankInfo[] = [];
-
-  const themeRankingPromise = getThemeFunRanking();
 
   if (authContext.user) {
     try {
-      const [themeRanking, pendingFeedbackParties, activeParty] = await Promise.all([
-        themeRankingPromise,
+      const [pendingFeedbackParties, activeParty] = await Promise.all([
         getPendingFeedbackPartiesForCurrentUser(),
         getActivePartySnapshotForCurrentUser(),
       ]);
-      themeFunRanking = themeRanking;
       pendingFeedbackCount = pendingFeedbackParties.length;
       pendingFeedbackHref = pendingFeedbackParties[0] ? `/feedback/${pendingFeedbackParties[0].id}` : "/home";
       activePartySnapshot = activeParty;
     } catch {
       pendingFeedbackCount = 0;
       activePartySnapshot = null;
-      try {
-        themeFunRanking = await themeRankingPromise;
-      } catch {
-        themeFunRanking = [];
-      }
-    }
-  } else {
-    try {
-      themeFunRanking = await themeRankingPromise;
-    } catch {
-      themeFunRanking = [];
     }
   }
 
@@ -99,9 +80,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           ) : null}
           <main className={`mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8 ${hasActivePartyBar ? "pb-28 sm:pb-32" : ""}`}>
-            <div className="mb-4 flex justify-end">
-              <ThemeToggle nickname={authContext.profile?.nickname ?? null} initialRanking={themeFunRanking} />
-            </div>
             {children}
           </main>
           <footer className={`border-t border-brand-100 bg-white/70 backdrop-blur-xl ${hasActivePartyBar ? "pb-24 sm:pb-28" : ""}`}>

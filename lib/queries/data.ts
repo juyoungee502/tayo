@@ -511,6 +511,21 @@ async function decoratePartyList(
     const isRecruiting = party.status === "recruiting";
     const blockedByAnotherActiveParty = Boolean(currentUserId && activePartyId && activePartyId !== party.id);
     const isJoinable = isFuture && isRecruiting && seatsLeft > 0 && !myMembership && !blockedByAnotherActiveParty;
+    const joinDisabledReason = isJoinable
+      ? null
+      : myMembership
+        ? "already_joined"
+        : party.status === "full" || seatsLeft === 0
+          ? "full"
+          : party.status === "completed"
+            ? "completed"
+            : party.status === "expired" || party.status === "cancelled"
+              ? "expired"
+              : !isFuture
+                ? "departed"
+                : blockedByAnotherActiveParty
+                  ? "other_active_party"
+                  : null;
     const rideStats = sharedRideStatsMap.get(party.creator_id);
     const reviewSummary = creatorReviewSummaryMap.get(party.creator_id) ?? { average: null, count: 0 };
 
@@ -527,6 +542,7 @@ async function decoratePartyList(
       seatsLeft,
       myMembershipStatus: (myMembership?.status as MemberStatus | undefined) ?? null,
       isJoinable,
+      joinDisabledReason,
     } satisfies PartyListItem;
   });
 }

@@ -1,12 +1,13 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { ThemeRankBadge } from "@/components/ui/theme-rank-badge";
 import { RandomMenuPicker } from "@/components/waiting/random-menu-picker";
 import { addGuestbookEntryAction, toggleGuestbookLikeAction } from "@/lib/actions/app-actions";
-import { getWaitingPageData } from "@/lib/queries/data";
+import { getThemeFunRanking, getWaitingPageData } from "@/lib/queries/data";
 import { formatDateTime } from "@/lib/utils";
 
 function pickParam(value: string | string[] | undefined) {
@@ -22,14 +23,16 @@ export default async function WaitingPage({
   const message = pickParam(query.message);
   const error = pickParam(query.error);
 
-  let waitingData: Awaited<ReturnType<typeof getWaitingPageData>> | null = null;
-  let loadError: string | null = null;
+  const [waitingResult, rankingResult] = await Promise.allSettled([
+    getWaitingPageData(),
+    getThemeFunRanking(),
+  ]);
 
-  try {
-    waitingData = await getWaitingPageData();
-  } catch {
-    loadError = "방명록 테이블이 아직 준비되지 않았어요. Supabase migration 적용 후 다시 확인해주세요.";
-  }
+  const waitingData = waitingResult.status === "fulfilled" ? waitingResult.value : null;
+  const themeRanking = rankingResult.status === "fulfilled" ? rankingResult.value : [];
+  const loadError = waitingResult.status === "rejected"
+    ? "방명록 테이블이 아직 준비되지 않았어요. Supabase migration 적용 후 다시 확인해주세요."
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5">
@@ -39,7 +42,7 @@ export default async function WaitingPage({
 
       <Card className="bg-mesh-glow p-6 sm:p-8">
         <div className="space-y-3 text-center">
-          <p className="text-3xl">{"𐔌՞⁔•͈ ·̫ •͈⁔՞𐦯"}</p>
+          <p className="text-3xl">{"?????? ·? ??????"}</p>
           <h1 className="font-[var(--font-display)] text-3xl font-bold text-slateBlue sm:text-4xl">
             오늘 뭐먹지??
           </h1>
@@ -59,6 +62,18 @@ export default async function WaitingPage({
               <p className="font-semibold text-slateBlue">오늘의 한 줄</p>
               <p className="mt-2">급한 하루도 같이 타면 조금 덜 막막해져요.</p>
             </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slateBlue">분위기 바꾸기</h2>
+            <p className="mt-1 text-sm text-slate-500">장난 기능은 메인 흐름에서 빼고 여기로 모아뒀어요.</p>
+          </div>
+          <div className="flex justify-end">
+            <ThemeToggle nickname={waitingData?.profile?.nickname ?? null} initialRanking={themeRanking} />
           </div>
         </div>
       </Card>

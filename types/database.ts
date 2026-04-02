@@ -121,6 +121,14 @@ export interface PartyListItem extends TaxiParty {
   seatsLeft: number;
   myMembershipStatus: MemberStatus | null;
   isJoinable: boolean;
+  joinDisabledReason:
+    | "already_joined"
+    | "other_active_party"
+    | "full"
+    | "completed"
+    | "expired"
+    | "departed"
+    | null;
 }
 
 export interface PartyParticipant {
@@ -150,5 +158,3 @@ export interface ActivePartySnapshot extends TaxiParty {
   seatsLeft: number;
   myMembershipStatus: MemberStatus | null;
 }
-
-
